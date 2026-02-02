@@ -190,27 +190,13 @@ export interface ConsultingOption {
 }
 
 // --- [Updated] Task Categories ---
-export type TaskCategoryGroup = 'PLANNING' | 'LOCATION' | 'PERMIT' | 'CONSTRUCTION' | 'EQUIPMENT' | 'SYSTEM' | 'OPERATION' | 'MARKETING';
+export type TaskCategoryGroup = 'CONSTRUCTION' | 'OPERATION' | 'INFO' | 'OPENING_LITE';
 
 export interface OpenTaskCategory {
   id: TaskCategoryGroup;
   label: string;
   description: string;
 }
-
-// 업종 타입 (체크리스트 필터링용)
-export type BusinessCategoryType =
-  | 'ALL'           // 공통 (모든 업종)
-  | 'FOOD'          // 음식점/식당
-  | 'CAFE'          // 카페/커피
-  | 'RETAIL'        // 소매/유통
-  | 'BEAUTY'        // 미용 (헤어, 네일, 피부)
-  | 'FITNESS'       // 헬스/필라테스
-  | 'EDUCATION'     // 학원/교육
-  | 'ENTERTAINMENT' // PC방/오락시설
-  | 'HOTEL'         // 호텔/숙박시설
-  | 'OFFICE'        // 사무실
-  | 'OTHER';        // 기타
 
 // --- [Updated] Task Item Definition ---
 export interface OpenTaskItem {
@@ -219,11 +205,9 @@ export interface OpenTaskItem {
   description: string;
   category: TaskCategoryGroup; // Grouping
   iconType: string; // Icon mapping string
-  applicableTo: BusinessCategoryType[]; // 적용 업종 (ALL이면 모든 업종)
   leadTime?: string; // Optional if not used everywhere
   isRequired?: boolean;
   isOpeningExclusive?: boolean; // Opening exclusive badge
-  isCustom?: boolean; // PM이 추가한 커스텀 항목 여부
 }
 
 // --- [New] Task Detail Form Data ---
@@ -275,78 +259,7 @@ export interface CategoryNode {
 }
 
 // Navigation Types
-export type MainTab = 'HOME' | 'LISTINGS' | 'FURNITURE' | 'QUOTE' | 'CONSULTING' | 'MORE' | 'FAQ' | 'CHECKLIST' | 'VENDORS' | 'SUPPORT' | 'DISTRICTS' | 'PROJECT' | 'ONBOARDING' | '3D_INTERIOR' | 'PROFILE';
-
-// 창업 프로젝트 상태
-export type ProjectStatus = 'DRAFT' | 'PM_ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-
-// 창업 프로젝트
-export interface StartupProject {
-  id: string;
-  business_category: string;
-  business_detail?: string;
-  location_city: string;
-  location_district: string;
-  location_dong: string;
-  store_size: number;
-  store_floor: string;
-  budget_total?: number;
-  budget_own?: number;
-  budget_loan?: number;
-  estimated_total: number;
-  status: ProjectStatus;
-  pm_id?: string;
-  created_at: string;
-  pm?: {
-    id: string;
-    name: string;
-    phone: string;
-    profile_image: string;
-    introduction: string;
-    rating: number;
-  };
-}
-
-// 가구 매물 상태
-export type FurnitureCondition = 'NEW' | 'LIKE_NEW' | 'GOOD' | 'FAIR';
-export type FurnitureStatus = 'ACTIVE' | 'RESERVED' | 'SOLD' | 'DELETED';
-
-// 가구 거래 매물
-export interface FurnitureListing {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  condition: FurnitureCondition;
-  price: number;
-  originalPrice?: number;
-  width?: number;
-  height?: number;
-  depth?: number;
-  images: string[];
-  location: string;
-  sellerId?: string;
-  sellerName: string;
-  sellerPhone: string;
-  status: FurnitureStatus;
-  views: number;
-  likes: number;
-  isNegotiable: boolean;
-  isDeliveryAvailable: boolean;
-  tags: string[];
-  createdAt: string;
-}
-
-// 결제 정보
-export interface PaymentInfo {
-  orderId: string;
-  orderName: string;
-  amount: number;
-  customerName: string;
-  customerEmail?: string;
-  customerPhone?: string;
-  furnitureId?: string;
-}
+export type MainTab = 'HOME' | 'LISTINGS' | 'QUOTE' | 'CONSULTING' | 'MORE' | 'FAQ'; // [Updated] Added FAQ
 
 export type AppStep = 
   | 'TAB_VIEW' // Shows the main tabs

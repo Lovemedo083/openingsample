@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Package, CategoryNode, ConsultingBooking } from '../types';
 import { CATEGORY_TREE, MOCK_USER_LISTINGS } from '../constants';
 import { Card, Button } from './Components';
-import {
-  Search, Bell, User, Clock, Heart, ChevronRight, RotateCcw,
+import { 
+  Search, Bell, User, Clock, Heart, ChevronRight, RotateCcw, 
   MapPin, Calendar, Tag, ShieldCheck, Box, MessageCircle, FileText,
-  Check, SlidersHorizontal, ChevronDown, Rocket, Sparkles, ArrowRight
+  Check, SlidersHorizontal, ChevronDown
 } from 'lucide-react';
 
 interface HomeViewProps {
@@ -13,19 +13,13 @@ interface HomeViewProps {
   onConsultingClick: (pkg?: Package) => void;
   consultingBookings?: ConsultingBooking[];
   onNavigateToConsulting?: () => void;
-  hasActiveProject?: boolean;
-  onStartNewProject?: () => void;
-  onNavigateToProject?: () => void;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({
-    onPackageSelect,
-    onConsultingClick,
+export const HomeView: React.FC<HomeViewProps> = ({ 
+    onPackageSelect, 
+    onConsultingClick, 
     consultingBookings = [],
-    onNavigateToConsulting,
-    hasActiveProject,
-    onStartNewProject,
-    onNavigateToProject
+    onNavigateToConsulting 
 }) => {
   const [selectedMajor, setSelectedMajor] = useState<CategoryNode | null>(null);
   const [selectedMiddle, setSelectedMiddle] = useState<CategoryNode | null>(null);
@@ -34,10 +28,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   
   // Detail Modal State
   const [selectedPackageDetail, setSelectedPackageDetail] = useState<Package | null>(null);
-
-  // Category Action Modal
-  const [showCategoryAction, setShowCategoryAction] = useState(false);
-
+  
   // Wishlist & Compare State (Mock)
   const [wishlist, setWishlist] = useState<Set<string>>(new Set());
   const [compareList, setCompareList] = useState<Set<string>>(new Set());
@@ -75,15 +66,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const handleMajorSelect = (cat: CategoryNode) => {
     if (selectedMajor?.id === cat.id) {
         resetSelection();
-        setShowCategoryAction(false);
     } else {
         setSelectedMajor(cat);
         setSelectedMiddle(null);
         setSelectedMinor(null);
-        // 하위 카테고리 없으면 바로 액션 모달 표시
-        if (!cat.children || cat.children.length === 0) {
-          setShowCategoryAction(true);
-        }
     }
   };
 
@@ -91,32 +77,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
       if (selectedMiddle?.id === cat.id) {
           setSelectedMiddle(null);
           setSelectedMinor(null);
-          setShowCategoryAction(false);
       } else {
           setSelectedMiddle(cat);
           setSelectedMinor(null);
-          // 하위 카테고리 없으면 바로 액션 모달 표시
-          if (!cat.children || cat.children.length === 0) {
-            setShowCategoryAction(true);
-          }
       }
   };
 
   const handleMinorSelect = (cat: CategoryNode) => {
       if (selectedMinor?.id === cat.id) {
           setSelectedMinor(null);
-          setShowCategoryAction(false);
       } else {
           setSelectedMinor(cat);
-          setShowCategoryAction(true);
       }
-  };
-
-  const getSelectedCategoryLabel = () => {
-    if (selectedMinor) return selectedMinor.label;
-    if (selectedMiddle) return selectedMiddle.label;
-    if (selectedMajor) return selectedMajor.label;
-    return '';
   };
 
   const toggleWishlist = (id: string, e: React.MouseEvent) => {
@@ -137,26 +109,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   // Filter Logic for User Listings
   const filteredListings = MOCK_USER_LISTINGS.filter(pkg => {
-    // Category filter
-    if (selectedMajor) {
-      const categoryMap: Record<string, string[]> = {
-        'FOOD': ['CAFE', 'PUB', 'CHICKEN', 'KOREAN'],
-        'RETAIL': ['CVS', 'CLOTHES', 'RETAIL'],
-        'BEAUTY': ['HAIR', 'NAIL', 'BEAUTY'],
-        'EDUCATION': ['STUDY', 'ACADEMY', 'EDUCATION'],
-        'HEALTH': ['FITNESS', 'PILATES'],
-        'ENTERTAINMENT': ['PC', 'KARAOKE', 'ENTERTAINMENT', 'OTHER'],
-        'OFFICE': ['OFFICE'],
-        'AUTO': ['AUTO'],
-        'LODGING': ['LODGING']
-      };
-      const allowedTypes = categoryMap[selectedMajor.id] || [];
-      if (!allowedTypes.includes(pkg.businessType)) return false;
-    }
-
-    // Tab filter
     const activeTabId = HOME_TABS.find(t => t.label === activeTab)?.id;
-    if (activeTabId && activeTabId !== 'today' && pkg.tags) {
+    if (activeTabId && pkg.tags) {
         if (!pkg.tags.includes(activeTabId)) return false;
     }
     return true;
@@ -291,15 +245,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* Bottom Actions */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white border-t border-gray-100 flex gap-3 z-50">
-                <Button
-                    variant="outline"
-                    className="flex-1 border-gray-300"
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex gap-3 z-50">
+                <Button 
+                    variant="outline" 
+                    className="flex-1 border-gray-300" 
                     onClick={() => { setSelectedPackageDetail(null); onConsultingClick(pkg); }}
                 >
                     <MessageCircle size={18} className="mr-2" /> 패키지 없이 상담
                 </Button>
-                <Button
+                <Button 
                     className="flex-[2]"
                     onClick={() => { setSelectedPackageDetail(null); onPackageSelect(pkg); }}
                 >
@@ -311,19 +265,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
   };
 
   return (
-    <div className="pb-28 bg-slate-50 min-h-screen">
+    <div className="pb-24 bg-slate-50 min-h-screen">
       {/* 1. Sticky Glass Header */}
       <header className="sticky top-0 z-40 glass border-b border-white/50 transition-all">
         <div className="max-w-7xl mx-auto">
             {/* Top Bar */}
             <div className="px-4 h-16 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2 shrink-0 cursor-pointer hover:opacity-80 transition-opacity" onClick={resetSelection}>
-                    <img src="/favicon-new.png" alt="오프닝" className="w-9 h-9 rounded-xl shadow-lg shadow-brand-500/30" />
+                    <div className="w-8 h-8 bg-brand-600 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg shadow-brand-500/30">O</div>
                     <span className="font-black text-xl text-slate-900 tracking-tight">오프닝</span>
                 </div>
                 
-                <div className="flex-1 min-w-0 mx-4 bg-slate-100/50 hover:bg-white h-10 rounded-full flex items-center px-4 text-slate-500 text-sm gap-2 cursor-pointer transition-all border border-transparent hover:border-brand-200 hover:shadow-sm group">
-                    <Search size={16} className="shrink-0 group-hover:text-brand-500 transition-colors" />
+                <div className="flex-1 max-w-md bg-slate-100/50 hover:bg-white h-10 rounded-full flex items-center px-4 text-slate-500 text-sm gap-2 cursor-pointer transition-all border border-transparent hover:border-brand-200 hover:shadow-sm group">
+                    <Search size={16} className="group-hover:text-brand-500 transition-colors" />
                     <span className="truncate group-hover:text-slate-700">업종, 지역, 예산 검색</span>
                 </div>
 
@@ -352,56 +306,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
         </div>
       </header>
-
-      {/* 1.5. 창업 시작 CTA 배너 */}
-      {!hasActiveProject && onStartNewProject && (
-        <section className="bg-gradient-to-r from-brand-600 to-brand-700 text-white py-6 px-4 relative overflow-hidden">
-          <div className="max-w-7xl mx-auto relative z-10">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles size={20} className="text-yellow-300" />
-                  <span className="text-sm font-bold text-brand-100">오프닝과 함께하는</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-1">나만의 창업 여정을 시작하세요</h2>
-                <p className="text-brand-100 text-sm">예상 비용 산출부터 전담 PM 배정까지, 한 번에</p>
-              </div>
-              <button
-                onClick={onStartNewProject}
-                className="flex items-center justify-center gap-2 bg-white text-brand-700 font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
-              >
-                <Rocket size={20} />
-                창업 시작하기
-                <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-          <div className="absolute right-[-50px] top-[-30px] opacity-10">
-            <Rocket size={200} />
-          </div>
-        </section>
-      )}
-
-      {/* 1.6. 활성 프로젝트 배너 */}
-      {hasActiveProject && onNavigateToProject && (
-        <section
-          onClick={onNavigateToProject}
-          className="bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-4 cursor-pointer hover:from-green-700 hover:to-green-800 transition-colors"
-        >
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <Rocket size={20} />
-              </div>
-              <div>
-                <p className="font-bold">진행 중인 프로젝트가 있습니다</p>
-                <p className="text-sm text-green-100">탭하여 대시보드 확인하기</p>
-              </div>
-            </div>
-            <ChevronRight size={24} className="text-green-200" />
-          </div>
-        </section>
-      )}
 
       {/* 2. Category Tree Selection (Animated) */}
       <section className="bg-white border-b border-slate-100 pt-6 pb-6 shadow-sm relative z-30">
@@ -595,17 +499,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
                                 <div className="mt-auto">
                                     <div className="mb-3">
-                                        <span className="text-[10px] text-gray-400 block mb-0.5">{pkg.hopePrice ? '희망가 (협의가능)' : ''}</span>
+                                        <span className="text-[10px] text-gray-400 block mb-0.5">희망가 (협의가능)</span>
                                         <div className="flex items-baseline justify-between">
                                             <div className="flex items-baseline gap-1">
-                                                {pkg.hopePrice ? (
-                                                  <>
-                                                    <span className="text-xl font-black text-slate-900">{pkg.hopePrice.toLocaleString()}</span>
-                                                    <span className="text-sm font-bold text-slate-900">원</span>
-                                                  </>
-                                                ) : (
-                                                  <span className="text-lg font-bold text-brand-600">상담문의</span>
-                                                )}
+                                                <span className="text-xl font-black text-slate-900">{pkg.hopePrice?.toLocaleString()}</span>
+                                                <span className="text-sm font-bold text-slate-900">원</span>
                                             </div>
                                             {/* Compare Checkbox (Added) */}
                                             <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5">
@@ -639,86 +537,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Detail Modal */}
       {selectedPackageDetail && renderDetailView()}
-
-      {/* Category Action Modal */}
-      {showCategoryAction && (selectedMajor || selectedMiddle || selectedMinor) && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center animate-fade-in">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCategoryAction(false)} />
-          <div className="relative bg-white w-full max-w-md rounded-t-3xl md:rounded-2xl p-6 animate-slide-up">
-            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4 md:hidden" />
-
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                {selectedMajor?.icon && <selectedMajor.icon size={32} className="text-brand-600" />}
-              </div>
-              <h3 className="text-xl font-bold text-slate-900">{getSelectedCategoryLabel()}</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {getSelectedCategoryLabel()} 창업을 준비하고 계시나요?
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  setShowCategoryAction(false);
-                  onStartNewProject?.();
-                }}
-                className="w-full flex items-center justify-between p-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <Rocket size={24} />
-                  <div className="text-left">
-                    <p className="font-bold">창업 상담 시작하기</p>
-                    <p className="text-sm text-brand-100">예상 비용부터 PM 배정까지</p>
-                  </div>
-                </div>
-                <ChevronRight size={20} />
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowCategoryAction(false);
-                  // 매물 목록이 필터링되어 보여짐
-                }}
-                className="w-full flex items-center justify-between p-4 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <Box size={24} className="text-slate-600" />
-                  <div className="text-left">
-                    <p className="font-bold">추천 매물 보기</p>
-                    <p className="text-sm text-gray-500">{filteredListings.length}개의 매물</p>
-                  </div>
-                </div>
-                <ChevronRight size={20} className="text-slate-400" />
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowCategoryAction(false);
-                  onConsultingClick();
-                }}
-                className="w-full flex items-center justify-between p-4 bg-white border border-gray-200 hover:border-brand-300 hover:bg-brand-50 rounded-xl transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <MessageCircle size={24} className="text-gray-500" />
-                  <div className="text-left">
-                    <p className="font-bold text-gray-700">무료 상담 신청</p>
-                    <p className="text-sm text-gray-500">전문 상담사와 1:1 상담</p>
-                  </div>
-                </div>
-                <ChevronRight size={20} className="text-gray-400" />
-              </button>
-            </div>
-
-            <button
-              onClick={() => setShowCategoryAction(false)}
-              className="w-full mt-4 py-3 text-gray-500 font-medium hover:text-gray-700"
-            >
-              닫기
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
