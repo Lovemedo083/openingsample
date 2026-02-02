@@ -313,15 +313,15 @@ export const ListingsView: React.FC<ListingsViewProps> = ({ onPackageSelect, onC
               </div>
 
               {/* Bottom Actions */}
-              <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 flex gap-3 z-50">
-                <Button 
-                    variant="outline" 
-                    className="flex-1" 
+              <div className="fixed bottom-0 left-0 right-0 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] bg-white border-t border-gray-100 flex gap-3 z-50">
+                <Button
+                    variant="outline"
+                    className="flex-1"
                     onClick={() => { setSelectedPackage(null); onConsultingClick(pkg); }}
                 >
                     <MessageCircle size={18} className="mr-2" /> 상담 신청
                 </Button>
-                <Button 
+                <Button
                     className="flex-[2]"
                     onClick={() => { setSelectedPackage(null); onPackageSelect(pkg); }}
                 >
@@ -334,7 +334,7 @@ export const ListingsView: React.FC<ListingsViewProps> = ({ onPackageSelect, onC
 
   // --- Main Render ---
   return (
-    <div className="pb-20 bg-white min-h-screen">
+    <div className="pb-28 bg-white min-h-screen">
       {/* 1. Top Search Bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
           <div className="p-4 flex gap-3">

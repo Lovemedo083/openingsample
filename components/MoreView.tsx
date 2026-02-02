@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
-import { User } from '../types';
-import { supabase } from '../utils/supabaseClient'; // Supabase Client 추가
+import { User, MainTab } from '../types';
+import { supabase } from '../utils/supabaseClient';
 import { Button, Badge } from './Components';
-import { 
-  User as UserIcon, LogOut, FileText, HelpCircle, 
-  ShieldAlert, Wrench, Building2, ChevronRight, MessageCircle, 
-  Phone, Bell, CreditCard, FileCheck, Search, ChevronDown, 
-  AlertTriangle, Clock, Box, RefreshCw
+import {
+  User as UserIcon, LogOut, FileText, HelpCircle,
+  ShieldAlert, Wrench, Building2, ChevronRight, MessageCircle,
+  Phone, Bell, CreditCard, FileCheck, Search, ChevronDown,
+  AlertTriangle, Clock, Box, RefreshCw, ClipboardList, Users,
+  Banknote, MapPin, Armchair, Rocket, Sparkles
 } from 'lucide-react';
 
 interface MoreViewProps {
   user: User | null;
-  onLogin: (type: 'KAKAO' | 'PHONE') => void; // App.tsx와의 호환성을 위해 타입 유지 (내부에서 처리하므로 실제로는 사용 안함)
+  onLogin: (type: 'KAKAO' | 'PHONE') => void;
   onLogout: () => void;
   consultingCount: number;
   quoteCount: number;
+  onNavigate?: (tab: MainTab) => void;
+  hasActiveProject?: boolean;
+  onStartNewProject?: () => void;
 }
 
 // FAQ Data Structure
@@ -36,8 +40,8 @@ const FAQ_ITEMS = [
     { id: 5, category: 'LISTING', q: '홈의 매물과 매물 탭의 차이가 뭔가요?', a: '홈은 타 점주님의 직거래/정리 매물이며, 매물 탭은 오프닝이 직접 검수하고 보증하는 인증 패키지입니다.' },
 ];
 
-export const MoreView: React.FC<MoreViewProps> = ({ 
-    user, onLogout, consultingCount, quoteCount 
+export const MoreView: React.FC<MoreViewProps> = ({
+    user, onLogout, consultingCount, quoteCount, onNavigate, hasActiveProject, onStartNewProject
 }) => {
   const [viewState, setViewState] = useState<'MENU' | 'FAQ'>('MENU');
   const [faqCategory, setFaqCategory] = useState('ALL');
@@ -238,7 +242,45 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
       {/* 3.2 Menu Sections */}
       <div className="p-4 space-y-4">
-          
+
+          {/* 0. 창업 프로젝트 */}
+          <section>
+              <h3 className="text-xs font-bold text-gray-400 mb-2 px-1">창업 프로젝트</h3>
+              {hasActiveProject ? (
+                  <div
+                      onClick={() => onNavigate?.('PROJECT')}
+                      className="bg-gradient-to-r from-green-600 to-green-700 rounded-xl p-4 text-white cursor-pointer hover:from-green-700 hover:to-green-800 transition-colors"
+                  >
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                              <Rocket size={20} />
+                          </div>
+                          <div className="flex-1">
+                              <p className="font-bold">진행 중인 프로젝트</p>
+                              <p className="text-sm text-green-100">대시보드에서 확인하기</p>
+                          </div>
+                          <ChevronRight size={20} className="text-green-200" />
+                      </div>
+                  </div>
+              ) : (
+                  <div
+                      onClick={onStartNewProject}
+                      className="bg-gradient-to-r from-brand-600 to-brand-700 rounded-xl p-4 text-white cursor-pointer hover:from-brand-700 hover:to-brand-800 transition-colors"
+                  >
+                      <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                              <Sparkles size={20} />
+                          </div>
+                          <div className="flex-1">
+                              <p className="font-bold">창업 시작하기</p>
+                              <p className="text-sm text-brand-100">예상 비용 산출 + PM 배정</p>
+                          </div>
+                          <ChevronRight size={20} className="text-brand-200" />
+                      </div>
+                  </div>
+              )}
+          </section>
+
           {/* A. Account */}
           {user && (
               <section>
@@ -276,6 +318,18 @@ export const MoreView: React.FC<MoreViewProps> = ({
           {/* D. Tools */}
           <section>
               <h3 className="text-xs font-bold text-gray-400 mb-2 px-1">창업 도구</h3>
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+                  <MenuItem icon={ClipboardList} label="창업 체크리스트" sub="오픈까지 할 일 관리" onClick={() => onNavigate?.('CHECKLIST')} />
+                  <MenuItem icon={Users} label="업체 찾기" sub="인테리어, 청소, 간판 등" onClick={() => onNavigate?.('VENDORS')} />
+                  <MenuItem icon={MapPin} label="강남구 상권 정보" sub="동별 창업 비용/특성" onClick={() => onNavigate?.('DISTRICTS')} />
+                  <MenuItem icon={Banknote} label="정부 지원사업" sub="희망리턴패키지 등" onClick={() => onNavigate?.('SUPPORT')} />
+                  <MenuItem icon={Armchair} label="가구 마켓" sub="중고 장비 거래" onClick={() => onNavigate?.('FURNITURE')} />
+              </div>
+          </section>
+
+          {/* E. Guides */}
+          <section>
+              <h3 className="text-xs font-bold text-gray-400 mb-2 px-1">가이드</h3>
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
                   <MenuItem icon={Wrench} label="점포 치수 입력 가이드" />
                   <MenuItem icon={ShieldAlert} label="사장님 필독 체크리스트" sub="업종별 실수 방지" />

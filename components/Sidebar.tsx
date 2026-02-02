@@ -1,16 +1,21 @@
 import React from 'react';
 import { MainTab } from '../types';
-import { Home, ShoppingBag, FileText, MessageSquare, HelpCircle, DoorOpen, LogOut, Settings, User } from 'lucide-react';
+import { Home, ShoppingBag, FileText, MessageSquare, HelpCircle, DoorOpen, LogOut, Settings, User, Armchair, Rocket, Plus } from 'lucide-react';
 
 interface SidebarProps {
   currentTab: MainTab;
   onTabChange: (tab: MainTab) => void;
   className?: string;
+  hasActiveProject?: boolean;
+  onStartNewProject?: () => void;
+  onLogout?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, className = '' }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, className = '', hasActiveProject, onStartNewProject, onLogout }) => {
   const tabs: { id: MainTab; label: string; icon: React.ReactNode }[] = [
     { id: 'HOME', label: '홈', icon: <Home size={20} /> },
+    { id: 'PROJECT' as MainTab, label: hasActiveProject ? '내 프로젝트' : '창업 시작하기', icon: <Rocket size={20} /> },
+    { id: 'FURNITURE', label: '가구 마켓', icon: <Armchair size={20} /> },
     { id: 'LISTINGS', label: '패키지 매물', icon: <ShoppingBag size={20} /> },
     { id: 'QUOTE', label: '견적 관리', icon: <FileText size={20} /> },
     { id: 'FAQ', label: 'FAQ', icon: <HelpCircle size={20} /> },
@@ -21,11 +26,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, class
     <aside className={`w-64 bg-white border-r border-gray-200 flex-col h-screen sticky top-0 z-50 shrink-0 ${className}`}>
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-gray-100 mb-4">
-        <div className="flex items-center gap-2 text-brand-600">
-             <DoorOpen size={28} strokeWidth={2.5} />
+        <div className="flex items-center gap-2">
+             <img src="/favicon-new.png" alt="오프닝" className="w-9 h-9 rounded-xl" />
              <span className="font-black text-xl tracking-tight text-slate-900">오프닝</span>
         </div>
       </div>
+
+      {/* 새 프로젝트 시작 버튼 */}
+      {onStartNewProject && !hasActiveProject && (
+        <div className="px-3 mb-4">
+          <button
+            onClick={onStartNewProject}
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-lg shadow-brand-500/20 transition-all"
+          >
+            <Plus size={20} />
+            창업 시작하기
+          </button>
+        </div>
+      )}
       
       {/* Navigation */}
       <div className="flex-1 px-3 space-y-1 overflow-y-auto">
@@ -51,11 +69,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onTabChange, class
         })}
 
         <div className="mt-8 px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider">Support</div>
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+        <button
+          onClick={() => onTabChange('MORE')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+        >
             <Settings size={20} className="text-gray-400" />
             설정
         </button>
-         <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-red-600 transition-colors"
+        >
             <LogOut size={20} className="text-gray-400" />
             로그아웃
         </button>

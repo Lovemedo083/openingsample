@@ -1,10 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { ConsultingBooking, OpenTaskItem, TaskDetailData, TaskCategoryGroup } from '../types';
-import { OPEN_PROCESS_TASKS, OPEN_TASK_CATEGORIES } from '../constants';
+import { OPEN_TASK_CATEGORIES, getTasksForBusinessType } from '../constants';
 import { Button, Input, Badge } from './Components';
-import { 
-  Check, X, ArrowRight, Settings, MapPin, Hammer, ShoppingBag, 
-  ShieldCheck, Zap, Box, FileText, Bike, Wine, Upload, Trash2, File as FileIcon
+import {
+  Check, X, ArrowRight, Settings, MapPin, Hammer, ShoppingBag,
+  ShieldCheck, Zap, Box, FileText, Bike, Wine, Upload, Trash2, File as FileIcon, Building2,
+  BarChart3, ClipboardList, Calculator, RefreshCw, Camera, Tablet, Coffee, Image, Rocket,
+  Lightbulb, Utensils, Pen, Heart, Stamp, Droplet, Layers, LayoutGrid, Wallet, CreditCard,
+  Users, Instagram, Armchair, Flame, Wifi, Truck, Shield, Phone, PlayCircle, Megaphone,
+  Wind, Scissors, Dumbbell
 } from 'lucide-react';
 
 interface ConsultingModuleProps {
@@ -107,19 +111,54 @@ export const ConsultingModule: React.FC<ConsultingModuleProps> = ({
   // --- Icons ---
   const getIcon = (type: string) => {
     switch (type) {
+      // 기본 아이콘
       case 'hammer': return Hammer;
       case 'paint': return Hammer;
-      case 'sign': return MapPin; 
+      case 'sign': return MapPin;
       case 'sparkles': return ShieldCheck;
-      case 'wifi': return Zap;
-      case 'shield': return ShieldCheck;
+      case 'wifi': return Wifi;
+      case 'shield': return Shield;
       case 'wine': return Wine;
       case 'bike': return Bike;
       case 'map': return MapPin;
+      case 'building': return Building2;
       case 'book': return FileText;
       case 'box': return Box;
-      case 'user': return FileText;
+      case 'user': return Users;
       case 'cube': return Box;
+      case 'chart': return BarChart3;
+      case 'clipboard': return ClipboardList;
+      case 'calculator': return Calculator;
+      case 'refresh': return RefreshCw;
+      case 'camera': return Camera;
+      case 'tablet': return Tablet;
+      case 'coffee': return Coffee;
+      case 'image': return Image;
+      case 'file': return FileText;
+      case 'rocket': return Rocket;
+      // 새로운 체크리스트 아이콘
+      case 'lightbulb': return Lightbulb;
+      case 'utensils': return Utensils;
+      case 'pen': return Pen;
+      case 'heart': return Heart;
+      case 'stamp': return Stamp;
+      case 'droplet': return Droplet;
+      case 'zap': return Zap;
+      case 'layers': return Layers;
+      case 'layout': return LayoutGrid;
+      case 'wallet': return Wallet;
+      case 'creditcard': return CreditCard;
+      case 'users': return Users;
+      case 'instagram': return Instagram;
+      case 'armchair': return Armchair;
+      case 'flame': return Flame;
+      case 'phone': return Phone;
+      case 'truck': return Truck;
+      case 'play': return PlayCircle;
+      case 'megaphone': return Megaphone;
+      case 'wind': return Wind;
+      case 'scissors': return Scissors;
+      case 'dumbbell': return Dumbbell;
       default: return Check;
     }
   };
@@ -254,7 +293,9 @@ export const ConsultingModule: React.FC<ConsultingModuleProps> = ({
 
             <div className="space-y-5">
                 {OPEN_TASK_CATEGORIES.map(group => {
-                    const tasks = OPEN_PROCESS_TASKS.filter(t => t.category === group.id);
+                    // 업종에 맞는 체크리스트 항목만 필터링
+                    const filteredTasks = getTasksForBusinessType(context.businessType);
+                    const tasks = filteredTasks.filter(t => t.category === group.id);
                     if (tasks.length === 0) return null;
 
                     return (

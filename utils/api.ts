@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { ConsultingBooking, Quote } from '../types';
+import { ConsultingBooking, Quote, FurnitureListing } from '../types';
 
 // 1. 상담 내역 불러오기 (files 컬럼 포함)
 export const fetchConsultings = async (): Promise<ConsultingBooking[]> => {
@@ -202,5 +202,293 @@ export const createQuote = async (quote: Quote) => {
     .single();
 
   if (error) throw error;
+  return data;
+};
+
+// ============ 가구 거래 API ============
+
+// 6. 가구 매물 목록 조회
+export const fetchFurnitureListings = async (category?: string): Promise<FurnitureListing[]> => {
+  let query = supabase
+    .from('furniture_listings')
+    .select('*')
+    .eq('status', 'ACTIVE')
+    .order('created_at', { ascending: false });
+
+  if (category && category !== 'ALL') {
+    query = query.eq('category', category);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching furniture listings:', error);
+    return [];
+  }
+
+  return data.map((item: any) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    category: item.category,
+    condition: item.condition,
+    price: Number(item.price),
+    originalPrice: item.original_price ? Number(item.original_price) : undefined,
+    width: item.width,
+    height: item.height,
+    depth: item.depth,
+    images: item.images || [],
+    location: item.location,
+    sellerId: item.seller_id,
+    sellerName: item.seller_name,
+    sellerPhone: item.seller_phone,
+    status: item.status,
+    views: item.views,
+    likes: item.likes,
+    isNegotiable: item.is_negotiable,
+    isDeliveryAvailable: item.is_delivery_available,
+    tags: item.tags || [],
+    createdAt: item.created_at
+  })) as FurnitureListing[];
+};
+
+// 7. 가구 매물 상세 조회
+export const fetchFurnitureDetail = async (id: string): Promise<FurnitureListing | null> => {
+  // 조회수 증가
+  await supabase
+    .from('furniture_listings')
+    .update({ views: supabase.rpc('increment_views') })
+    .eq('id', id)
+    .catch(() => {});
+
+  const { data, error } = await supabase
+    .from('furniture_listings')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching furniture detail:', error);
+    return null;
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    category: data.category,
+    condition: data.condition,
+    price: Number(data.price),
+    originalPrice: data.original_price ? Number(data.original_price) : undefined,
+    width: data.width,
+    height: data.height,
+    depth: data.depth,
+    images: data.images || [],
+    location: data.location,
+    sellerId: data.seller_id,
+    sellerName: data.seller_name,
+    sellerPhone: data.seller_phone,
+    status: data.status,
+    views: data.views,
+    likes: data.likes,
+    isNegotiable: data.is_negotiable,
+    isDeliveryAvailable: data.is_delivery_available,
+    tags: data.tags || [],
+    createdAt: data.created_at
+  };
+};
+
+// 8. 가구 매물 등록
+export const createFurnitureListing = async (listing: Partial<FurnitureListing>): Promise<FurnitureListing> => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data, error } = await supabase
+    .from('furniture_listings')
+    .insert([{
+      title: listing.title,
+      description: listing.description,
+      category: listing.category,
+      condition: listing.condition,
+      price: listing.price,
+      original_price: listing.originalPrice,
+      width: listing.width,
+      height: listing.height,
+      depth: listing.depth,
+      images: listing.images || [],
+      location: listing.location,
+      seller_id: user?.id,
+      seller_name: listing.sellerName,
+      seller_phone: listing.sellerPhone,
+      is_negotiable: listing.isNegotiable ?? true,
+      is_delivery_available: listing.isDeliveryAvailable ?? false,
+      tags: listing.tags || [],
+      status: 'ACTIVE'
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    category: data.category,
+    condition: data.condition,
+    price: Number(data.price),
+    originalPrice: data.original_price ? Number(data.original_price) : undefined,
+    width: data.width,
+    height: data.height,
+    depth: data.depth,
+    images: data.images || [],
+    location: data.location,
+    sellerId: data.seller_id,
+    sellerName: data.seller_name,
+    sellerPhone: data.seller_phone,
+    status: data.status,
+    views: data.views,
+    likes: data.likes,
+    isNegotiable: data.is_negotiable,
+    isDeliveryAvailable: data.is_delivery_available,
+    tags: data.tags || [],
+    createdAt: data.created_at
+  };
+};
+
+// 9. 가구 이미지 업로드
+export const uploadFurnitureImage = async (file: File): Promise<string> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `furniture/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('uploads')
+    .upload(fileName, file);
+
+  if (uploadError) throw uploadError;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('uploads')
+    .getPublicUrl(fileName);
+
+  return publicUrl;
+};
+
+// ============ 인증 API ============
+
+// 10. 이메일 회원가입
+export const signUpWithEmail = async (email: string, password: string, name: string) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: name },
+      emailRedirectTo: window.location.origin
+    }
+  });
+
+  if (error) throw error;
+  return data;
+};
+
+// 11. 이메일 로그인
+export const signInWithEmail = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) throw error;
+  return data;
+};
+
+// ============ 결제 API ============
+
+// 12. 결제 생성 (토스 결제 전 저장)
+export const createPayment = async (paymentData: {
+  orderId: string;
+  furnitureListingId: string;
+  amount: number;
+  sellerId?: string;
+}) => {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data, error } = await supabase
+    .from('payments')
+    .insert([{
+      order_id: paymentData.orderId,
+      furniture_listing_id: paymentData.furnitureListingId,
+      buyer_id: user?.id,
+      seller_id: paymentData.sellerId,
+      amount: paymentData.amount,
+      status: 'PENDING'
+    }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// 13. 결제 완료 처리
+export const completePayment = async (orderId: string, paymentKey: string) => {
+  const { data, error } = await supabase
+    .from('payments')
+    .update({
+      payment_key: paymentKey,
+      status: 'COMPLETED',
+      approved_at: new Date().toISOString()
+    })
+    .eq('order_id', orderId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // 가구 매물 상태를 SOLD로 변경
+  if (data?.furniture_listing_id) {
+    await supabase
+      .from('furniture_listings')
+      .update({ status: 'SOLD' })
+      .eq('id', data.furniture_listing_id);
+  }
+
+  return data;
+};
+
+// 14. 결제 취소
+export const cancelPayment = async (orderId: string) => {
+  const { data, error } = await supabase
+    .from('payments')
+    .update({
+      status: 'CANCELLED',
+      cancelled_at: new Date().toISOString()
+    })
+    .eq('order_id', orderId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// 15. 내 결제 내역 조회
+export const fetchMyPayments = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('payments')
+    .select(`
+      *,
+      furniture_listings (title, images)
+    `)
+    .eq('buyer_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching payments:', error);
+    return [];
+  }
+
   return data;
 };

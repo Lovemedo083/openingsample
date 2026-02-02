@@ -168,7 +168,7 @@ export const MyConsultationsView: React.FC<MyConsultationsViewProps> = ({ bookin
   );
 
   const renderDashboardTab = () => (
-      <div className="p-4 space-y-6 bg-gray-50 min-h-screen pb-20">
+      <div className="p-4 space-y-6 bg-gray-50 min-h-screen pb-28">
           <div className="bg-brand-50 border border-brand-100 rounded-xl p-4 flex items-start gap-3">
               <AlertCircle className="text-brand-600 shrink-0 mt-0.5" size={20} />
               <div>
@@ -216,7 +216,7 @@ export const MyConsultationsView: React.FC<MyConsultationsViewProps> = ({ bookin
   );
 
   const renderChecklistTab = () => (
-      <div className="p-4 bg-gray-50 min-h-screen pb-20">
+      <div className="p-4 bg-gray-50 min-h-screen pb-28">
           <div className="text-sm text-gray-500 mb-4 px-1">
               선택하신 항목을 기반으로 <strong>견적서 v1</strong>이 작성됩니다.
           </div>
@@ -274,7 +274,7 @@ export const MyConsultationsView: React.FC<MyConsultationsViewProps> = ({ bookin
   );
 
   const renderFilesTab = () => (
-      <div className="p-4 bg-gray-50 min-h-screen pb-20">
+      <div className="p-4 bg-gray-50 min-h-screen pb-28">
           <div className="bg-white rounded-xl border border-gray-200 p-5 text-center mb-6">
                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
                    <UploadCloud size={24} />
@@ -320,7 +320,7 @@ export const MyConsultationsView: React.FC<MyConsultationsViewProps> = ({ bookin
   );
 
   const renderTimelineTab = () => (
-      <div className="p-4 bg-gray-50 min-h-screen pb-20">
+      <div className="p-4 bg-gray-50 min-h-screen pb-28">
           <div className="space-y-6 relative pl-4 border-l border-gray-200 ml-4 my-4">
                {['계약/착수', '철거/기초', '인테리어/설비', '설치/배치', '준공청소', '오픈'].map((stage, idx) => (
                    <div key={idx} className="relative pl-6">
@@ -354,7 +354,7 @@ export const MyConsultationsView: React.FC<MyConsultationsViewProps> = ({ bookin
   const waitingCount = bookings.filter(b => b.status === 'PENDING').length;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-28">
       {/* Header Summary */}
       <div className="bg-white p-6 border-b border-gray-100">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">내 상담</h1>

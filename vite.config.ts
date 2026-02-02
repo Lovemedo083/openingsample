@@ -8,18 +8,6 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
-        proxy: {
-          '/api/marble': {
-            target: 'https://api.worldlabs.ai',
-            changeOrigin: true,
-            rewrite: (p: string) => p.replace(/^\/api\/marble/, '/marble/v1'),
-          },
-          '/cdn/marble': {
-            target: 'https://cdn.marble.worldlabs.ai',
-            changeOrigin: true,
-            rewrite: (p: string) => p.replace(/^\/cdn\/marble/, ''),
-          },
-        },
       },
       plugins: [react()],
       define: {
@@ -30,14 +18,6 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      },
-      build: {
-        rollupOptions: {
-          input: {
-            main: path.resolve(__dirname, 'index.html'),
-            scanner: path.resolve(__dirname, 'scanner.html'),
-          },
-        },
-      },
+      }
     };
 });
