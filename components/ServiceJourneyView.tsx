@@ -1470,9 +1470,46 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
       {/* 컨텐츠 - 하단 버튼 영역 확보 */}
       <div className="flex-1 p-4 pb-32 overflow-y-auto">
-        {/* Step 1: 업종 선택 + 부동산 계약 여부 */}
+        {/* Step 1: 부동산 계약 여부 + 업종 선택 */}
         {currentStep === 1 && (
           <div className="space-y-6">
+            {/* 부동산 계약 여부 질문 (최상단) */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-5">
+              <p className="font-bold text-slate-900 mb-1">부동산(매장) 계약은 하셨나요?</p>
+              <p className="text-xs text-slate-400 mb-4">계약 여부에 따라 필요한 단계가 달라져요</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setHasRealEstateContract(true)}
+                  className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    hasRealEstateContract === true
+                      ? 'border-brand-600 bg-brand-50'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <CheckCircle size={24} className={`mx-auto mb-2 ${hasRealEstateContract === true ? 'text-brand-600' : 'text-gray-300'}`} />
+                  <p className={`font-bold text-sm ${hasRealEstateContract === true ? 'text-brand-700' : 'text-gray-700'}`}>
+                    네, 계약했어요
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1">바로 비용 산출로</p>
+                </button>
+                <button
+                  onClick={() => setHasRealEstateContract(false)}
+                  className={`p-4 rounded-xl border-2 text-center transition-all ${
+                    hasRealEstateContract === false
+                      ? 'border-brand-600 bg-brand-50'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <MapPin size={24} className={`mx-auto mb-2 ${hasRealEstateContract === false ? 'text-brand-600' : 'text-gray-300'}`} />
+                  <p className={`font-bold text-sm ${hasRealEstateContract === false ? 'text-brand-700' : 'text-gray-700'}`}>
+                    아직이요
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1">위치 선택부터</p>
+                </button>
+              </div>
+            </div>
+
+            {/* 업종 선택 */}
             <div className="grid grid-cols-2 gap-3">
               {BUSINESS_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -1480,10 +1517,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                 return (
                   <button
                     key={cat.id}
-                    onClick={() => {
-                      setBusinessCategory(cat.id);
-                      setHasRealEstateContract(null);
-                    }}
+                    onClick={() => setBusinessCategory(cat.id)}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       isSelected
                         ? 'border-brand-600 bg-brand-50 shadow-md'
@@ -1500,44 +1534,6 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                 );
               })}
             </div>
-
-            {/* 부동산 계약 여부 질문 - 업종 선택 후 표시 */}
-            {businessCategory && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 animate-slide-up">
-                <p className="font-bold text-slate-900 mb-1">부동산(매장) 계약은 하셨나요?</p>
-                <p className="text-xs text-slate-400 mb-4">계약 여부에 따라 필요한 단계가 달라져요</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setHasRealEstateContract(true)}
-                    className={`p-4 rounded-xl border-2 text-center transition-all ${
-                      hasRealEstateContract === true
-                        ? 'border-brand-600 bg-brand-50'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <CheckCircle size={24} className={`mx-auto mb-2 ${hasRealEstateContract === true ? 'text-brand-600' : 'text-gray-300'}`} />
-                    <p className={`font-bold text-sm ${hasRealEstateContract === true ? 'text-brand-700' : 'text-gray-700'}`}>
-                      네, 계약했어요
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-1">바로 비용 산출로</p>
-                  </button>
-                  <button
-                    onClick={() => setHasRealEstateContract(false)}
-                    className={`p-4 rounded-xl border-2 text-center transition-all ${
-                      hasRealEstateContract === false
-                        ? 'border-brand-600 bg-brand-50'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <MapPin size={24} className={`mx-auto mb-2 ${hasRealEstateContract === false ? 'text-brand-600' : 'text-gray-300'}`} />
-                    <p className={`font-bold text-sm ${hasRealEstateContract === false ? 'text-brand-700' : 'text-gray-700'}`}>
-                      아직이요
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-1">위치 선택부터</p>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
