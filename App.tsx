@@ -245,6 +245,8 @@ function App() {
           <MyPageView
             user={user}
             onLogout={handleLogout}
+            consultingCount={consultingBookings.filter((b: any) => b.status === 'IN_PROGRESS').length}
+            quoteCount={0}
           />
         )}
       </main>

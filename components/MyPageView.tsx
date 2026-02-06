@@ -3,15 +3,17 @@ import { User } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import {
   User as UserIcon, LogOut, Bell, ChevronRight,
-  FileText, Shield, MessageCircle
+  FileText, CreditCard, FileCheck, MessageCircle
 } from 'lucide-react';
 
 interface MyPageViewProps {
   user: User | null;
   onLogout: () => void;
+  consultingCount?: number;
+  quoteCount?: number;
 }
 
-export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout }) => {
+export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout, consultingCount = 0, quoteCount = 0 }) => {
 
   const handleKakaoLogin = async () => {
     const redirectUrl = window.location.hostname === 'localhost'
@@ -26,7 +28,7 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
-      {/* Header */}
+      {/* 프로필 헤더 */}
       <div className="bg-white px-4 pt-6 pb-6 border-b border-slate-100">
         <h1 className="text-xl font-bold text-slate-900 mb-5">마이페이지</h1>
 
@@ -37,7 +39,7 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout }) => {
             </div>
             <div className="flex-1">
               <p className="font-bold text-lg text-slate-900">{user.name} 사장님</p>
-              <p className="text-sm text-slate-400">{user.phone || '카카오 로그인'}</p>
+              <p className="text-sm text-slate-400">{user.phone || '게스트'}</p>
             </div>
           </div>
         ) : (
@@ -54,25 +56,44 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout }) => {
         )}
       </div>
 
+      {/* 내 현황 */}
+      {user && (
+        <div className="px-4 pt-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl border border-slate-100 p-4 text-center">
+              <p className="text-xs text-slate-400 mb-1">진행중 상담</p>
+              <p className="font-bold text-lg text-brand-600">{consultingCount}건</p>
+            </div>
+            <div className="bg-white rounded-xl border border-slate-100 p-4 text-center">
+              <p className="text-xs text-slate-400 mb-1">받은 견적</p>
+              <p className="font-bold text-lg text-slate-900">{quoteCount}건</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 메뉴 */}
       <div className="p-4 space-y-4">
         {user && (
           <section>
-            <h3 className="text-xs font-bold text-slate-400 mb-2 px-1">계정</h3>
+            <h3 className="text-xs font-bold text-slate-400 mb-2 px-1">내 계정</h3>
             <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
-              <MenuItem icon={UserIcon} label="내 정보 관리" />
+              <MenuItem icon={UserIcon} label="내 정보 관리" sub="이름·연락처 수정" />
               <MenuItem icon={Bell} label="알림 설정" />
             </div>
           </section>
         )}
 
-        <section>
-          <h3 className="text-xs font-bold text-slate-400 mb-2 px-1">정보</h3>
-          <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
-            <MenuItem icon={FileText} label="이용약관" />
-            <MenuItem icon={Shield} label="개인정보 처리방침" />
-          </div>
-        </section>
+        {user && (
+          <section>
+            <h3 className="text-xs font-bold text-slate-400 mb-2 px-1">내 문서</h3>
+            <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
+              <MenuItem icon={FileText} label="저장된 견적서" />
+              <MenuItem icon={FileCheck} label="계약/확정 내역" />
+              <MenuItem icon={CreditCard} label="결제 영수증" />
+            </div>
+          </section>
+        )}
 
         {user && (
           <button
@@ -98,12 +119,16 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout }) => {
 const MenuItem: React.FC<{
   icon: any;
   label: string;
+  sub?: string;
   onClick?: () => void;
-}> = ({ icon: Icon, label, onClick }) => (
+}> = ({ icon: Icon, label, sub, onClick }) => (
   <button onClick={onClick} className="w-full p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
     <div className="flex items-center gap-3">
       <Icon size={18} className="text-slate-400" />
-      <span className="text-sm font-medium text-slate-900">{label}</span>
+      <div className="text-left">
+        <span className="text-sm font-medium text-slate-900">{label}</span>
+        {sub && <p className="text-[10px] text-slate-400">{sub}</p>}
+      </div>
     </div>
     <ChevronRight size={16} className="text-slate-300" />
   </button>
