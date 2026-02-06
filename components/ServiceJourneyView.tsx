@@ -1631,102 +1631,76 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
         {/* Step 5: 체크리스트 */}
         {currentStep === 5 && (
-          <div className="space-y-4">
-            {/* 스킵 버튼 */}
-            <button
-              onClick={goToNextStep}
-              className="w-full py-2.5 text-sm text-slate-400 font-medium border border-dashed border-slate-200 rounded-xl hover:bg-slate-50 hover:text-slate-500 transition-colors"
-            >
-              지금은 넘어갈래요 →
-            </button>
-
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 text-sm text-yellow-800">
-              <p className="font-bold mb-1">💡 현재 상황을 체크해주세요</p>
-              <p className="text-yellow-700 text-xs">이미 준비됨 ✓ / 도움 필요 ⚠️ 를 체크하면 PM이 참고합니다</p>
+          <div className="space-y-5">
+            {/* 안내 + 스킵 */}
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-400">탭하여 상태를 변경하세요</p>
+              <button onClick={goToNextStep} className="text-xs text-brand-500 font-bold px-3 py-1.5 rounded-lg hover:bg-brand-50 transition-colors">
+                건너뛰기 →
+              </button>
             </div>
 
-            {(() => {
-              const categoryConfig: Record<string, { emoji: string; color: string; bg: string; border: string }> = {
-                '행정/서류': { emoji: '📋', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' },
-                '인테리어/공사': { emoji: '🔨', color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
-                '장비/세팅': { emoji: '🪑', color: 'text-cyan-700', bg: 'bg-cyan-50', border: 'border-cyan-200' },
-                'PM 지원': { emoji: '🎯', color: 'text-brand-700', bg: 'bg-brand-50', border: 'border-brand-200' },
-              };
+            {/* 범례 */}
+            <div className="flex gap-4 justify-center">
+              <span className="flex items-center gap-1.5 text-[11px] text-slate-400"><span className="w-2.5 h-2.5 rounded-full bg-slate-200" /> 미확인</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-green-600"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> 준비됨</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-orange-500"><span className="w-2.5 h-2.5 rounded-full bg-orange-400" /> 도움필요</span>
+            </div>
 
-              return ['행정/서류', '인테리어/공사', '장비/세팅', 'PM 지원'].map(category => {
-                const categoryItems = checklist.filter(item => item.category === category);
-                if (categoryItems.length === 0) return null;
-                const config = categoryConfig[category] || { emoji: '📌', color: 'text-gray-700', bg: 'bg-gray-50', border: 'border-gray-200' };
-                const doneCount = categoryItems.filter(i => i.status === 'done').length;
-                const worryCount = categoryItems.filter(i => i.status === 'worry').length;
+            {['행정/서류', '인테리어/공사', '장비/세팅', 'PM 지원'].map(category => {
+              const categoryItems = checklist.filter(item => item.category === category);
+              if (categoryItems.length === 0) return null;
 
-                return (
-                  <div key={category} className={`bg-white rounded-xl border ${config.border} overflow-hidden`}>
-                    {/* 카테고리 헤더 */}
-                    <div className={`px-4 py-3 border-b ${config.border} ${config.bg}`}>
-                      <div className="flex items-center justify-between">
-                        <h3 className={`font-bold text-sm ${config.color} flex items-center gap-2`}>
-                          <span className="text-base">{config.emoji}</span>
-                          {category === 'PM 지원' ? 'PM이 도와드리는 항목' : category}
-                        </h3>
-                        <div className="flex items-center gap-2 text-xs">
-                          {doneCount > 0 && (
-                            <span className="bg-green-100 text-green-700 font-bold px-2 py-0.5 rounded-full">✓ {doneCount}</span>
-                          )}
-                          {worryCount > 0 && (
-                            <span className="bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded-full">⚠ {worryCount}</span>
-                          )}
-                          <span className="text-slate-400">{categoryItems.length}개</span>
+              return (
+                <div key={category}>
+                  <p className="text-xs font-bold text-slate-400 mb-2 px-1">{category === 'PM 지원' ? 'PM 지원 항목' : category}</p>
+                  <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
+                    {categoryItems.map((item, idx) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          const next = item.status === 'unchecked' ? 'done' : item.status === 'done' ? 'worry' : 'unchecked';
+                          toggleChecklistItem(item.id, next);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all active:bg-slate-50 ${
+                          idx > 0 ? 'border-t border-slate-50' : ''
+                        }`}
+                      >
+                        {/* 상태 인디케이터 */}
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                          item.status === 'done' ? 'bg-green-500 text-white' :
+                          item.status === 'worry' ? 'bg-orange-400 text-white' :
+                          'bg-slate-100 text-slate-300'
+                        }`}>
+                          {item.status === 'done' ? <Check size={16} /> :
+                           item.status === 'worry' ? <AlertTriangle size={14} /> :
+                           <span className="w-2 h-2 rounded-full bg-slate-300" />}
                         </div>
-                      </div>
-                    </div>
-                    {/* 항목 */}
-                    <div className="divide-y divide-slate-100">
-                      {categoryItems.map(item => {
-                        const Icon = item.icon;
-                        return (
-                          <div key={item.id} className="px-4 py-3 flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                              item.status === 'done' ? 'bg-green-100 text-green-600' :
-                              item.status === 'worry' ? 'bg-orange-100 text-orange-600' :
-                              'bg-gray-100 text-gray-400'
-                            }`}>
-                              <Icon size={18} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-sm text-gray-900">{item.title}</p>
-                              <p className="text-xs text-gray-400 leading-tight">{item.description}</p>
-                            </div>
-                            <div className="flex gap-1.5 shrink-0">
-                              <button
-                                onClick={() => toggleChecklistItem(item.id, item.status === 'done' ? 'unchecked' : 'done')}
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center border-2 transition-all ${
-                                  item.status === 'done'
-                                    ? 'bg-green-500 border-green-500 text-white scale-105'
-                                    : 'border-gray-200 text-gray-300 hover:border-green-300'
-                                }`}
-                              >
-                                <Check size={16} />
-                              </button>
-                              <button
-                                onClick={() => toggleChecklistItem(item.id, item.status === 'worry' ? 'unchecked' : 'worry')}
-                                className={`w-9 h-9 rounded-lg flex items-center justify-center border-2 transition-all ${
-                                  item.status === 'worry'
-                                    ? 'bg-orange-500 border-orange-500 text-white scale-105'
-                                    : 'border-gray-200 text-gray-300 hover:border-orange-300'
-                                }`}
-                              >
-                                <AlertTriangle size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+
+                        {/* 텍스트 */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[13px] font-bold leading-tight ${
+                            item.status === 'done' ? 'text-green-700' :
+                            item.status === 'worry' ? 'text-orange-600' :
+                            'text-slate-800'
+                          }`}>{item.title}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">{item.description}</p>
+                        </div>
+
+                        {/* 상태 라벨 */}
+                        {item.status !== 'unchecked' && (
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${
+                            item.status === 'done' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-500'
+                          }`}>
+                            {item.status === 'done' ? '준비됨' : '도움필요'}
+                          </span>
+                        )}
+                      </button>
+                    ))}
                   </div>
-                );
-              });
-            })()}
+                </div>
+              );
+            })}
           </div>
         )}
 
