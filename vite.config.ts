@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => {
           input: {
             main: path.resolve(__dirname, 'index.html'),
             scanner: path.resolve(__dirname, 'scanner.html'),
+            furniture: path.resolve(__dirname, 'furniture.html'),
           },
         },
       },
