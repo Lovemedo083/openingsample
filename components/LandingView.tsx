@@ -1,5 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ArrowRight } from 'lucide-react';
+
+const BUSINESS_EXAMPLES = [
+  { emoji: '🍗', name: '우리동네 치킨집', cost: '1억 2,000', color: 'from-amber-500 to-orange-500' },
+  { emoji: '☕', name: '우리동네 카페', cost: '1억 4,000', color: 'from-amber-700 to-yellow-600' },
+  { emoji: '🍶', name: '우리동네 요리술집', cost: '1억 6,000', color: 'from-rose-500 to-pink-500' },
+  { emoji: '🍰', name: '우리동네 베이커리', cost: '1억 8,000', color: 'from-pink-400 to-rose-400' },
+  { emoji: '💪', name: '우리동네 필라테스', cost: '9,000', color: 'from-violet-500 to-purple-500' },
+  { emoji: '💇', name: '우리동네 미용실', cost: '8,500', color: 'from-teal-500 to-emerald-500' },
+  { emoji: '🍜', name: '우리동네 분식집', cost: '7,000', color: 'from-red-500 to-orange-400' },
+];
 
 interface LandingViewProps {
   onStart: () => void;
@@ -7,7 +17,20 @@ interface LandingViewProps {
 }
 
 export const LandingView: React.FC<LandingViewProps> = ({ onStart, onAdminLogin }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [logoTapCount, setLogoTapCount] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentIndex(prev => (prev + 1) % BUSINESS_EXAMPLES.length);
+        setIsAnimating(false);
+      }, 300);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
@@ -60,19 +83,41 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onAdminLogin 
             확인해보세요
           </h1>
 
-          {/* 비주얼 요소: 평균 비용 표시 */}
-          <div className="relative my-6 flex justify-center">
-            <div className="relative">
-              <div className="w-48 h-48 rounded-full bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center shadow-inner">
-                <div className="bg-slate-800 rounded-xl px-6 py-4 shadow-2xl">
-                  <p className="text-slate-400 text-xs font-medium mb-0.5">평균</p>
-                  <p className="text-white text-2xl font-black tracking-tight">
-                    4,200<span className="text-lg font-bold">만원</span><span className="text-sm text-slate-400">*</span>
-                  </p>
-                </div>
-              </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-brand-100 rounded-full opacity-60" />
-              <div className="absolute -bottom-2 -left-3 w-9 h-9 bg-brand-50 rounded-full opacity-80" />
+          {/* 비주얼: 업종별 비용 슬라이드 */}
+          <div className="my-6 flex flex-col items-center gap-3">
+            <div className="relative w-full max-w-xs h-32 flex items-center justify-center overflow-hidden">
+              {(() => {
+                const item = BUSINESS_EXAMPLES[currentIndex];
+                return (
+                  <div
+                    key={currentIndex}
+                    className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-300 ${
+                      isAnimating ? 'opacity-0 translate-y-6' : 'opacity-100 translate-y-0'
+                    }`}
+                  >
+                    <span className="text-5xl mb-2">{item.emoji}</span>
+                    <p className="text-sm font-bold text-slate-500">{item.name}</p>
+                    <p className="text-slate-900 font-black text-2xl tracking-tight mt-0.5">
+                      <span className={`bg-gradient-to-r ${item.color} bg-clip-text text-transparent`}>
+                        {item.cost}
+                      </span>
+                      <span className="text-lg font-bold text-slate-400">만원</span>
+                      <span className="text-xs text-slate-300 font-medium ml-1">평균</span>
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+            {/* 인디케이터 */}
+            <div className="flex gap-1.5">
+              {BUSINESS_EXAMPLES.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    i === currentIndex ? 'w-4 bg-brand-500' : 'w-1 bg-slate-200'
+                  }`}
+                />
+              ))}
             </div>
           </div>
 
