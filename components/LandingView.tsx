@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { Search, ArrowRight, Loader2, MessageCircle } from 'lucide-react';
+import { Search, Loader2, MessageCircle } from 'lucide-react';
 
 interface LandingViewProps {
-  onKakaoLogin: () => void;
-  onGoToLogin: () => void;
+  onAdminLogin?: (email: string, password: string) => Promise<boolean>;
 }
 
-export const LandingView: React.FC<LandingViewProps> = ({ onKakaoLogin, onGoToLogin }) => {
+export const LandingView: React.FC<LandingViewProps> = ({ onAdminLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [logoTapCount, setLogoTapCount] = useState(0);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
 
-  const handleStartKakaoLogin = async () => {
+  const handleKakaoLogin = async () => {
     setIsLoading(true);
     try {
       const redirectUrl = window.location.hostname === 'localhost'
@@ -26,14 +30,32 @@ export const LandingView: React.FC<LandingViewProps> = ({ onKakaoLogin, onGoToLo
 
       if (error) {
         console.error('Kakao login error:', error);
-        // fallback: 일반 로그인 페이지로
-        onGoToLogin();
+        alert('로그인에 실패했습니다. 다시 시도해주세요.');
       }
     } catch (e) {
       console.error('Login failed:', e);
-      onGoToLogin();
+      alert('로그인에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLogoTap = () => {
+    const newCount = logoTapCount + 1;
+    setLogoTapCount(newCount);
+    if (newCount >= 5) {
+      setShowAdminLogin(true);
+      setLogoTapCount(0);
+    }
+    setTimeout(() => setLogoTapCount(0), 3000);
+  };
+
+  const handleAdminSubmit = async () => {
+    if (!onAdminLogin) return;
+    setAdminError('');
+    const success = await onAdminLogin(adminEmail, adminPassword);
+    if (!success) {
+      setAdminError('로그인 실패');
     }
   };
 
@@ -47,7 +69,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onKakaoLogin, onGoToLo
             <span>이미 진행중이세요?</span>
           </div>
           <button
-            onClick={onGoToLogin}
+            onClick={handleKakaoLogin}
             className="text-brand-600 text-sm font-bold hover:text-brand-700 transition-colors"
           >
             내 프로젝트 보기
@@ -84,7 +106,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onKakaoLogin, onGoToLo
           {/* CTA 버튼: 카카오 로그인 */}
           <div className="animate-slide-up space-y-3">
             <button
-              onClick={handleStartKakaoLogin}
+              onClick={handleKakaoLogin}
               disabled={isLoading}
               className="w-full max-w-sm mx-auto bg-[#FEE500] hover:bg-[#F5DC00] text-[#3C1E1E] font-bold py-4 px-8 rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-lg"
             >
@@ -107,13 +129,51 @@ export const LandingView: React.FC<LandingViewProps> = ({ onKakaoLogin, onGoToLo
         </div>
       </div>
 
-      {/* 하단 로고 */}
+      {/* 하단 로고 (5회 탭 → 관리자 로그인) */}
       <div className="pb-8 text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
+        <button onClick={handleLogoTap} className="inline-flex items-center justify-center gap-2 mb-2">
           <img src="/favicon-new.png" alt="오프닝" className="w-7 h-7 rounded-lg" />
           <span className="font-bold text-slate-300 text-sm">오프닝</span>
-        </div>
+        </button>
       </div>
+
+      {/* 관리자/PM 로그인 모달 (숨김) */}
+      {showAdminLogin && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">관리자 로그인</h3>
+            <input
+              type="text"
+              placeholder="이메일"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm mb-3"
+            />
+            <input
+              type="password"
+              placeholder="비밀번호"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm mb-3"
+            />
+            {adminError && <p className="text-red-500 text-sm mb-3">{adminError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAdminLogin(false)}
+                className="flex-1 py-3 rounded-xl border border-slate-200 text-sm font-medium text-slate-600"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleAdminSubmit}
+                className="flex-1 py-3 rounded-xl bg-slate-900 text-white text-sm font-bold"
+              >
+                로그인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

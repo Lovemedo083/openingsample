@@ -3,7 +3,6 @@ import { MainTab, User } from './types';
 import { supabase } from './utils/supabaseClient';
 import { BottomNav } from './components/BottomNav';
 import { LandingView } from './components/LandingView';
-import { LoginView } from './components/LoginView';
 import { DashboardView } from './components/DashboardView';
 import { ServiceJourneyView } from './components/ServiceJourneyView';
 import { MyConsultationsView } from './components/MyConsultationsView';
@@ -23,7 +22,6 @@ function App() {
   const [pmId, setPmId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isGuestMode, setIsGuestMode] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
 
   // 탭 상태
   const [currentTab, setCurrentTab] = useState<MainTab>('HOME');
@@ -98,7 +96,6 @@ function App() {
     setIsPM(false);
     setPmId(null);
     setIsGuestMode(false);
-    setShowLogin(false);
     setHasActiveProject(false);
     setCurrentTab('HOME');
   };
@@ -128,14 +125,6 @@ function App() {
     return false;
   };
 
-  const handleGuestLogin = () => {
-    setIsGuestMode(true);
-    setUser({ id: `guest-${Date.now()}`, name: '게스트', phone: '', type: 'PHONE', joinedDate: new Date().toLocaleDateString() });
-    setIsAuthenticated(true);
-    setConsultingBookings([]);
-    setHasActiveProject(false);
-  };
-
   // === 렌더링 ===
 
   // 1. 로딩
@@ -152,15 +141,11 @@ function App() {
     );
   }
 
-  // 2. 비인증: 랜딩 또는 로그인
+  // 2. 비인증: 랜딩 페이지 (카카오 로그인만)
   if (!isAuthenticated) {
-    if (showLogin) {
-      return <LoginView onLoginSuccess={handleGuestLogin} onAdminLogin={handleAdminLogin} />;
-    }
     return (
       <LandingView
-        onKakaoLogin={() => {}}
-        onGoToLogin={() => setShowLogin(true)}
+        onAdminLogin={handleAdminLogin}
       />
     );
   }
