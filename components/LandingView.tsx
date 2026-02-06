@@ -4,11 +4,8 @@ import { Search, ArrowRight } from 'lucide-react';
 const BUSINESS_EXAMPLES = [
   { emoji: '🍗', name: '우리동네 치킨집', cost: '1억 2,000', color: 'from-amber-500 to-orange-500' },
   { emoji: '☕', name: '우리동네 카페', cost: '1억 4,000', color: 'from-amber-700 to-yellow-600' },
-  { emoji: '🍶', name: '우리동네 요리술집', cost: '1억 6,000', color: 'from-rose-500 to-pink-500' },
-  { emoji: '🍰', name: '우리동네 베이커리', cost: '1억 8,000', color: 'from-pink-400 to-rose-400' },
+  { emoji: '🍶', name: '우리동네 요리주점', cost: '1억 6,000', color: 'from-rose-500 to-pink-500' },
   { emoji: '💪', name: '우리동네 필라테스', cost: '9,000', color: 'from-violet-500 to-purple-500' },
-  { emoji: '💇', name: '우리동네 미용실', cost: '8,500', color: 'from-teal-500 to-emerald-500' },
-  { emoji: '🍜', name: '우리동네 분식집', cost: '7,000', color: 'from-red-500 to-orange-400' },
 ];
 
 interface LandingViewProps {
@@ -119,6 +116,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onAdminLogin 
                 />
               ))}
             </div>
+            <p className="text-[10px] text-slate-300">*강남구 기준</p>
           </div>
 
           {/* CTA 버튼 */}
