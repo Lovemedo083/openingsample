@@ -882,7 +882,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   // 서비스 안내 페이지 (토스 감성)
   if (showOnboarding) {
     return (
-      <div className="h-[100dvh] bg-gradient-to-b from-[#0d1b3e] via-[#1a2d5a] to-[#0f1d40] flex flex-col overflow-hidden relative">
+      <div className="fixed inset-0 z-[60] bg-gradient-to-b from-[#0d1b3e] via-[#1a2d5a] to-[#0f1d40] flex flex-col overflow-hidden">
         {/* 별/파티클 배경 */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {[...Array(30)].map((_, i) => (
