@@ -14,6 +14,9 @@ import { fetchConsultings } from './utils/api';
 import { DoorOpen, Loader2 } from 'lucide-react';
 
 function App() {
+  // 랜딩 페이지 표시 여부
+  const [showLanding, setShowLanding] = useState(true);
+
   // Auth 상태
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -21,7 +24,6 @@ function App() {
   const [isPM, setIsPM] = useState(false);
   const [pmId, setPmId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [isGuestMode, setIsGuestMode] = useState(false);
 
   // 탭 상태
   const [currentTab, setCurrentTab] = useState<MainTab>('HOME');
@@ -34,13 +36,20 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      handleSession(session);
+      if (session?.user) {
+        handleSession(session);
+        // 이미 로그인된 사용자는 랜딩 스킵
+        setShowLanding(false);
+      }
       setIsAuthChecking(false);
     };
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleSession(session);
+      if (session?.user) {
+        handleSession(session);
+        setShowLanding(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -61,10 +70,6 @@ function App() {
       });
       setIsAuthenticated(true);
       loadUserData();
-    } else {
-      setUser(null);
-      setIsAuthenticated(false);
-      setIsAdmin(false);
     }
   };
 
@@ -95,17 +100,24 @@ function App() {
     setIsAdmin(false);
     setIsPM(false);
     setPmId(null);
-    setIsGuestMode(false);
     setHasActiveProject(false);
     setCurrentTab('HOME');
+    setShowLanding(true);
   };
 
-  // Admin/PM 로그인
+  // 랜딩에서 "창업비용 확인하기" 클릭 → 게스트로 바로 진입
+  const handleStartFromLanding = () => {
+    setUser({ id: `guest-${Date.now()}`, name: '사장님', phone: '', type: 'PHONE', joinedDate: new Date().toLocaleDateString() });
+    setShowLanding(false);
+  };
+
+  // Admin/PM 로그인 (숨김 기능)
   const handleAdminLogin = async (email: string, password: string): Promise<boolean> => {
     if (email === 'admin' && password === 'epdlfflalf1!') {
       setIsAdmin(true);
       setIsAuthenticated(true);
       setUser({ id: 'admin', name: '관리자', phone: '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
+      setShowLanding(false);
       return true;
     }
     if (password === 'pm1234!') {
@@ -119,6 +131,7 @@ function App() {
         setPmId(pmData.id);
         setIsAuthenticated(true);
         setUser({ id: pmData.id, name: pmData.name + ' PM', phone: pmData.phone || '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
+        setShowLanding(false);
         return true;
       }
     }
@@ -141,10 +154,11 @@ function App() {
     );
   }
 
-  // 2. 비인증: 랜딩 페이지 (카카오 로그인만)
-  if (!isAuthenticated) {
+  // 2. 랜딩 페이지 (첫 화면 - 로그인 페이지 아님!)
+  if (showLanding) {
     return (
       <LandingView
+        onStart={handleStartFromLanding}
         onAdminLogin={handleAdminLogin}
       />
     );
@@ -168,12 +182,12 @@ function App() {
           hasActiveProject ? (
             <DashboardView
               onNavigateToProject={() => setCurrentTab('PROJECT')}
-              isGuestMode={isGuestMode}
+              isGuestMode={!isAuthenticated}
             />
           ) : (
             <ServiceJourneyView
               onBack={() => {}}
-              isGuestMode={isGuestMode}
+              isGuestMode={!isAuthenticated}
             />
           )
         )}
@@ -181,7 +195,7 @@ function App() {
         {currentTab === 'PROJECT' && (
           <ServiceJourneyView
             onBack={() => setCurrentTab('HOME')}
-            isGuestMode={isGuestMode}
+            isGuestMode={!isAuthenticated}
           />
         )}
 

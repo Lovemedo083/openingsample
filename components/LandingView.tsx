@@ -1,44 +1,17 @@
 import React, { useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
-import { Search, Loader2, MessageCircle } from 'lucide-react';
+import { Search, ArrowRight } from 'lucide-react';
 
 interface LandingViewProps {
+  onStart: () => void;
   onAdminLogin?: (email: string, password: string) => Promise<boolean>;
 }
 
-export const LandingView: React.FC<LandingViewProps> = ({ onAdminLogin }) => {
-  const [isLoading, setIsLoading] = useState(false);
+export const LandingView: React.FC<LandingViewProps> = ({ onStart, onAdminLogin }) => {
   const [logoTapCount, setLogoTapCount] = useState(0);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminError, setAdminError] = useState('');
-
-  const handleKakaoLogin = async () => {
-    setIsLoading(true);
-    try {
-      const redirectUrl = window.location.hostname === 'localhost'
-        ? window.location.origin
-        : 'https://opening.run';
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'kakao',
-        options: {
-          redirectTo: redirectUrl,
-        },
-      });
-
-      if (error) {
-        console.error('Kakao login error:', error);
-        alert('로그인에 실패했습니다. 다시 시도해주세요.');
-      }
-    } catch (e) {
-      console.error('Login failed:', e);
-      alert('로그인에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogoTap = () => {
     const newCount = logoTapCount + 1;
@@ -69,7 +42,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onAdminLogin }) => {
             <span>이미 진행중이세요?</span>
           </div>
           <button
-            onClick={handleKakaoLogin}
+            onClick={onStart}
             className="text-brand-600 text-sm font-bold hover:text-brand-700 transition-colors"
           >
             내 프로젝트 보기
@@ -103,26 +76,16 @@ export const LandingView: React.FC<LandingViewProps> = ({ onAdminLogin }) => {
             </div>
           </div>
 
-          {/* CTA 버튼: 카카오 로그인 */}
+          {/* CTA 버튼 */}
           <div className="animate-slide-up space-y-3">
             <button
-              onClick={handleKakaoLogin}
-              disabled={isLoading}
-              className="w-full max-w-sm mx-auto bg-[#FEE500] hover:bg-[#F5DC00] text-[#3C1E1E] font-bold py-4 px-8 rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-lg"
+              onClick={onStart}
+              className="w-full max-w-sm mx-auto bg-brand-600 hover:bg-brand-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 text-lg"
             >
-              {isLoading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <>
-                  <MessageCircle size={20} />
-                  창업비용 확인하기
-                </>
-              )}
+              창업비용 확인하기
+              <ArrowRight size={20} />
             </button>
-            <p className="text-xs text-slate-400">
-              카카오 로그인으로 간편하게 시작합니다
-            </p>
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-slate-300 mt-4">
               * 업종/지역/규모에 따라 달라질 수 있습니다
             </p>
           </div>
