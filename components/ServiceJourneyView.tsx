@@ -879,147 +879,94 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     );
   }
 
-  // 서비스 안내 페이지 (토스 감성)
+  // 서비스 안내 페이지 (토스 감성 - 스크롤 없음, 한 화면)
   if (showOnboarding) {
     return (
       <div className="fixed inset-0 z-[60] bg-gradient-to-b from-[#0d1b3e] via-[#1a2d5a] to-[#0f1d40] flex flex-col overflow-hidden">
-        {/* 별/파티클 배경 */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(30)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-1 h-1 bg-white rounded-full"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                opacity: 0.2 + Math.random() * 0.5,
-                animation: `pulse ${2 + Math.random() * 3}s ease-in-out infinite`,
-                animationDelay: `${Math.random() * 2}s`,
-              }}
-            />
+        {/* 별 배경 */}
+        <div className="absolute inset-0 pointer-events-none">
+          {[...Array(25)].map((_, i) => (
+            <div key={i} className="absolute w-[2px] h-[2px] bg-white rounded-full"
+              style={{ top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, opacity: 0.15+Math.random()*0.4, animation: `pulse ${2+Math.random()*3}s ease-in-out infinite ${Math.random()*2}s` }} />
           ))}
-          {/* 떠다니는 로켓 1 */}
-          <div
-            className="absolute text-2xl"
-            style={{
-              top: '8%', right: '10%',
-              animation: 'float-rocket 6s ease-in-out infinite',
-            }}
-          >
-            <Rocket size={28} className="text-brand-400 -rotate-45" />
+          <div className="absolute top-[6%] right-[8%]" style={{ animation: 'float-rocket 6s ease-in-out infinite' }}>
+            <Rocket size={24} className="text-brand-400/80 -rotate-45" />
           </div>
-          {/* 떠다니는 로켓 2 */}
-          <div
-            className="absolute text-xl"
-            style={{
-              top: '35%', left: '5%',
-              animation: 'float-rocket 8s ease-in-out infinite 2s',
-              opacity: 0.5,
-            }}
-          >
-            <Rocket size={20} className="text-indigo-400 rotate-12" />
+          <div className="absolute top-[40%] left-[4%]" style={{ animation: 'float-rocket 8s ease-in-out infinite 2s' }}>
+            <Rocket size={16} className="text-indigo-400/50 rotate-12" />
           </div>
-          {/* 반짝이는 별 */}
-          <div className="absolute top-[15%] left-[20%]" style={{ animation: 'twinkle 3s ease-in-out infinite' }}>
-            <Sparkles size={16} className="text-yellow-300" />
+          <div className="absolute top-[12%] left-[18%]" style={{ animation: 'twinkle 3s ease-in-out infinite' }}>
+            <Sparkles size={14} className="text-yellow-300/70" />
           </div>
-          <div className="absolute top-[45%] right-[15%]" style={{ animation: 'twinkle 4s ease-in-out infinite 1s' }}>
-            <Sparkles size={14} className="text-cyan-300" />
+          <div className="absolute top-[50%] right-[12%]" style={{ animation: 'twinkle 4s ease-in-out infinite 1s' }}>
+            <Sparkles size={12} className="text-cyan-300/60" />
           </div>
-          <div className="absolute bottom-[30%] left-[12%]" style={{ animation: 'twinkle 3.5s ease-in-out infinite 0.5s' }}>
-            <Sparkles size={12} className="text-purple-300" />
-          </div>
-          {/* 그라디언트 글로우 */}
-          <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-brand-500/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/15 rounded-full blur-3xl" />
+          <div className="absolute top-[-15%] right-[-15%] w-[50%] h-[50%] bg-brand-500/15 rounded-full blur-3xl" />
+          <div className="absolute bottom-[-10%] left-[-10%] w-[35%] h-[35%] bg-indigo-500/10 rounded-full blur-3xl" />
         </div>
 
-        {/* CSS 애니메이션 */}
         <style>{`
-          @keyframes float-rocket {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            25% { transform: translateY(-15px) rotate(3deg); }
-            50% { transform: translateY(-8px) rotate(-2deg); }
-            75% { transform: translateY(-20px) rotate(2deg); }
-          }
-          @keyframes twinkle {
-            0%, 100% { opacity: 0.3; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.2); }
-          }
-          @keyframes slide-up {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
+          @keyframes float-rocket { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+          @keyframes twinkle { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.2)} }
+          @keyframes fade-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         `}</style>
 
-        {/* 상단 헤더 */}
-        <div className="pt-14 pb-2 px-6 text-center relative z-10 shrink-0">
-          <div className="w-16 h-16 rounded-2xl shadow-2xl shadow-brand-500/30 mx-auto mb-5 overflow-hidden ring-2 ring-white/20">
-            <img src="/favicon-new.png" alt="오프닝" className="w-full h-full" />
+        {/* 로고 + 타이틀 */}
+        <div className="pt-[max(env(safe-area-inset-top),12px)] shrink-0 relative z-10">
+          <div className="px-6 pt-8 pb-3 text-center">
+            <div className="w-12 h-12 rounded-2xl shadow-xl shadow-brand-500/30 mx-auto mb-3 overflow-hidden ring-2 ring-white/20">
+              <img src="/favicon-new.png" alt="오프닝" className="w-full h-full" />
+            </div>
+            <h1 className="text-xl font-black text-white leading-tight">
+              창업, 이렇게 쉬웠나요?
+            </h1>
+            <p className="text-xs text-blue-200/60 mt-1">4단계로 끝나는 창업 준비</p>
           </div>
-          <h1 className="text-2xl font-black text-white mb-2 leading-tight">
-            창업, 이렇게<br />쉬웠나요?
-          </h1>
-          <p className="text-sm text-blue-200/70">4단계로 끝나는 창업 준비</p>
         </div>
 
-        {/* 안내 카드 리스트 */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 relative z-10">
-          <div className="space-y-3">
-            {[
-              { icon: Store, step: '01', title: '업종 선택', desc: '간편하게 업종을 선택하세요', gradient: 'from-amber-400 to-orange-500', delay: '0.1s' },
-              { icon: MapPinned, step: '02', title: '무료 입지 분석', desc: '입지 분석 리포트를 무료로 받아보세요', gradient: 'from-cyan-400 to-blue-500', delay: '0.2s' },
-              { icon: FileText, step: '03', title: '창업 체크리스트', desc: '필요한 도움을 미리 파악하세요', gradient: 'from-emerald-400 to-green-500', delay: '0.3s' },
-              { icon: HeartHandshake, step: '04', title: 'AI 분석 + PM 배정', desc: '상권분석·비용 리포트 확인 후\n전담 PM이 끝까지 함께합니다', gradient: 'from-violet-400 to-purple-500', delay: '0.4s' },
-            ].map((feat, idx) => {
-              const Icon = feat.icon;
-              return (
-                <div
-                  key={idx}
-                  className="flex items-start gap-4 p-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10"
-                  style={{ animation: `slide-up 0.5s ease-out ${feat.delay} both` }}
-                >
-                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feat.gradient} flex items-center justify-center shrink-0 shadow-lg`}>
-                    <Icon size={24} className="text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-black text-blue-300/80 tracking-widest">STEP {feat.step}</span>
-                    <p className="font-bold text-white text-sm mt-0.5">{feat.title}</p>
-                    <p className="text-xs text-blue-200/60 mt-0.5 leading-relaxed whitespace-pre-line">{feat.desc}</p>
-                  </div>
+        {/* 4단계 카드 - flex-1로 남은 공간 채움 */}
+        <div className="flex-1 flex flex-col justify-center px-5 gap-2.5 relative z-10 min-h-0">
+          {[
+            { icon: Store, n: '1', title: '업종 선택', desc: '간편하게 업종을 선택하세요', g: 'from-amber-400 to-orange-500' },
+            { icon: MapPinned, n: '2', title: '무료 입지 분석', desc: '입지 분석 리포트를 무료로 받아보세요', g: 'from-cyan-400 to-blue-500' },
+            { icon: FileText, n: '3', title: '창업 체크리스트', desc: '필요한 도움을 미리 파악하세요', g: 'from-emerald-400 to-green-500' },
+            { icon: HeartHandshake, n: '4', title: 'AI 분석 + PM 배정', desc: '전담 PM이 끝까지 함께합니다', g: 'from-violet-400 to-purple-500' },
+          ].map((f, i) => {
+            const Icon = f.icon;
+            return (
+              <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-white/[0.08] backdrop-blur-sm border border-white/[0.08]"
+                style={{ animation: `fade-in 0.4s ease-out ${i*0.1}s both` }}>
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.g} flex items-center justify-center shrink-0 shadow-md`}>
+                  <Icon size={20} className="text-white" />
                 </div>
-              );
-            })}
-          </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-white text-[13px] leading-tight">{f.title}</p>
+                  <p className="text-[11px] text-blue-200/50 leading-tight mt-0.5">{f.desc}</p>
+                </div>
+                <span className="text-[10px] font-black text-white/20 shrink-0">{f.n}</span>
+              </div>
+            );
+          })}
 
-          {/* 무료 강조 배지 */}
-          <div
-            className="mt-4 text-center py-3 px-4 rounded-2xl bg-gradient-to-r from-brand-500/20 to-indigo-500/20 border border-brand-400/20"
-            style={{ animation: 'slide-up 0.5s ease-out 0.5s both' }}
-          >
-            <p className="text-sm font-bold text-white flex items-center justify-center gap-2">
-              <Sparkles size={16} className="text-yellow-400" />
-              모든 분석은 <span className="text-brand-300">100% 무료</span>
-              <Sparkles size={16} className="text-yellow-400" />
-            </p>
+          {/* 무료 배지 */}
+          <div className="text-center py-2 mt-1" style={{ animation: 'fade-in 0.4s ease-out 0.5s both' }}>
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white/80 bg-white/[0.08] px-4 py-1.5 rounded-full border border-white/[0.06]">
+              <Sparkles size={12} className="text-yellow-400" />
+              모든 분석 100% 무료
+            </span>
           </div>
         </div>
 
         {/* 하단 버튼 */}
-        <div className="px-5 pb-6 pt-3 relative z-10 shrink-0"
-          style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
-        >
-          <button
-            onClick={completeOnboarding}
-            className="w-full bg-white text-[#0d1b3e] font-black py-4 rounded-2xl shadow-2xl shadow-white/20 active:scale-[0.97] transition-all flex items-center justify-center gap-2 text-base"
-          >
-            <Rocket size={20} className="text-brand-600" />
+        <div className="px-5 shrink-0 relative z-10"
+          style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
+          <button onClick={completeOnboarding}
+            className="w-full bg-white text-[#0d1b3e] font-black py-3.5 rounded-2xl shadow-2xl shadow-white/20 active:scale-[0.97] transition-all flex items-center justify-center gap-2 text-[15px]">
+            <Rocket size={18} className="text-brand-600" />
             시작하기
           </button>
-          <button
-            onClick={() => { if (onBack) onBack(); }}
-            className="w-full mt-2 text-blue-300/50 text-xs font-medium py-2 hover:text-blue-200/80 transition-colors"
-          >
+          <button onClick={() => { if (onBack) onBack(); }}
+            className="w-full mt-1 text-blue-300/40 text-[11px] font-medium py-2">
             다음에 할게요
           </button>
         </div>
