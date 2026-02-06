@@ -136,9 +136,9 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
 
       {/* 하단 로고 (5회 탭 → 관리자 로그인) */}
       <div className="py-4 text-center shrink-0">
-        <button onClick={handleLogoTap} className="inline-flex items-center justify-center gap-2">
-          <img src="/favicon-new.png" alt="오프닝" className="w-6 h-6 rounded-lg" />
-          <span className="font-bold text-slate-300 text-xs">오프닝</span>
+        <button onClick={handleLogoTap} className="inline-flex items-center justify-center gap-2.5">
+          <img src="/favicon-new.png" alt="오프닝" className="w-9 h-9 rounded-xl" />
+          <span className="font-bold text-slate-400 text-sm">오프닝</span>
         </button>
       </div>
 
