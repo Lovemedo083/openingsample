@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- 열린 문 아이콘 - 파란색 -->
+  <g fill="#1E6FFF">
+    <!-- 왼쪽 문 (열린 상태) -->
+    <path d="M15 80V25c0-5.5 4.5-10 10-10h20v70H25c-5.5 0-10-4.5-10-10z" fill-opacity="0.7"/>
+    <!-- 오른쪽 문 -->
+    <path d="M45 15h20c5.5 0 10 4.5 10 10v55c0 5.5-4.5 10-10 10H45V15z"/>
+    <!-- 문 손잡이 -->
+    <circle cx="38" cy="50" r="4"/>
+    <!-- 바닥 그림자/현관 -->
+    <path d="M5 85c0 0 15-8 45-8s45 8 45 8" stroke="#1E6FFF" stroke-width="6" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
