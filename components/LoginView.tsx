@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { DoorOpen, ArrowRight, Lock, Mail, Loader2, Sparkles, Phone, User, ChevronDown } from 'lucide-react';
+import { DoorOpen, ArrowRight, ArrowLeft, Lock, Mail, Loader2, Sparkles, Phone, User, ChevronDown } from 'lucide-react';
 
 const SIGNUP_SOURCES = [
   { value: '', label: '가입 경로 선택' },
@@ -16,9 +16,10 @@ const SIGNUP_SOURCES = [
 interface LoginViewProps {
   onLoginSuccess: () => void;
   onAdminLogin?: (email: string, password: string) => boolean | Promise<boolean>;
+  onBack?: () => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLogin }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLogin, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -130,6 +131,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLog
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-200/30 rounded-full blur-3xl" />
 
       <div className="w-full max-w-md relative z-10 animate-scale-in">
+        {/* 뒤로가기 */}
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-sm text-slate-500 font-medium mb-6 hover:text-slate-700 transition-colors"
+          >
+            <ArrowLeft size={16} />
+            돌아가기
+          </button>
+        )}
         {/* Logo Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-brand-500/20 overflow-hidden">

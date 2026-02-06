@@ -10,10 +10,11 @@ const BUSINESS_EXAMPLES = [
 
 interface LandingViewProps {
   onStart: () => void;
+  onGoToLogin?: () => void;
   onAdminLogin?: (email: string, password: string) => Promise<boolean>;
 }
 
-export const LandingView: React.FC<LandingViewProps> = ({ onStart, onAdminLogin }) => {
+export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, onAdminLogin }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [logoTapCount, setLogoTapCount] = useState(0);
@@ -62,7 +63,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onAdminLogin 
             <span>이미 진행중이세요?</span>
           </div>
           <button
-            onClick={onStart}
+            onClick={onGoToLogin || onStart}
             className="text-brand-600 text-xs font-bold hover:text-brand-700 transition-colors"
           >
             내 프로젝트 보기
@@ -80,41 +81,49 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onAdminLogin 
             확인해보세요
           </h1>
 
-          {/* 비주얼: 업종별 비용 슬라이드 */}
-          <div className="my-6 flex flex-col items-center gap-3">
-            <div className="relative w-full max-w-xs h-32 flex items-center justify-center overflow-hidden">
-              {(() => {
-                const item = BUSINESS_EXAMPLES[currentIndex];
-                return (
+          {/* 비주얼: 업종별 비용 슬라이드 (다크 카드) */}
+          <div className="my-6 flex flex-col items-center gap-3 px-2">
+            <div className="w-full max-w-xs bg-slate-800 rounded-2xl shadow-2xl overflow-hidden relative" style={{ minHeight: '160px' }}>
+              {/* 배경 데코 */}
+              <div className="absolute top-0 right-0 w-24 h-24 bg-slate-700/40 rounded-full -translate-y-8 translate-x-8" />
+              <div className="absolute bottom-0 left-0 w-16 h-16 bg-slate-700/30 rounded-full translate-y-6 -translate-x-4" />
+
+              <div className="relative px-6 py-6 flex flex-col items-center justify-center h-40">
+                {BUSINESS_EXAMPLES.map((item, i) => (
                   <div
-                    key={currentIndex}
-                    className={`absolute inset-0 flex flex-col items-center justify-center transition-all duration-300 ${
-                      isAnimating ? 'opacity-0 translate-y-6' : 'opacity-100 translate-y-0'
-                    }`}
+                    key={i}
+                    className="absolute inset-0 flex flex-col items-center justify-center px-6"
+                    style={{
+                      opacity: i === currentIndex && !isAnimating ? 1 : 0,
+                      transform: i === currentIndex && !isAnimating
+                        ? 'translateY(0) scale(1)'
+                        : isAnimating && i === currentIndex
+                          ? 'translateY(-20px) scale(0.95)'
+                          : 'translateY(20px) scale(0.95)',
+                      transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
                   >
-                    <span className="text-5xl mb-2">{item.emoji}</span>
-                    <p className="text-sm font-bold text-slate-500">{item.name}</p>
-                    <p className="text-slate-900 font-black text-2xl tracking-tight mt-0.5">
-                      <span className={`bg-gradient-to-r ${item.color} bg-clip-text text-transparent`}>
-                        {item.cost}
-                      </span>
-                      <span className="text-lg font-bold text-slate-400">만원</span>
-                      <span className="text-xs text-slate-300 font-medium ml-1">평균</span>
+                    <span className="text-4xl mb-2 drop-shadow-lg">{item.emoji}</span>
+                    <p className="text-slate-400 text-sm font-medium">{item.name}</p>
+                    <p className="text-white font-black text-3xl tracking-tight mt-1">
+                      {item.cost}<span className="text-xl font-bold text-slate-300">만원</span>
                     </p>
+                    <p className="text-slate-500 text-xs mt-0.5">평균 창업비용</p>
                   </div>
-                );
-              })()}
-            </div>
-            {/* 인디케이터 */}
-            <div className="flex gap-1.5">
-              {BUSINESS_EXAMPLES.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-1 rounded-full transition-all duration-300 ${
-                    i === currentIndex ? 'w-4 bg-brand-500' : 'w-1 bg-slate-200'
-                  }`}
-                />
-              ))}
+                ))}
+              </div>
+
+              {/* 인디케이터 (카드 내부 하단) */}
+              <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                {BUSINESS_EXAMPLES.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-1 rounded-full transition-all duration-400 ${
+                      i === currentIndex ? 'w-5 bg-white' : 'w-1.5 bg-slate-600'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
             <p className="text-[10px] text-slate-300">*강남구 기준</p>
           </div>

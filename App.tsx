@@ -10,12 +10,14 @@ import { MoreView } from './components/MoreView';
 import { MyPageView } from './components/MyPageView';
 import { AdminView } from './components/AdminView';
 import { PMPortalView } from './components/PMPortalView';
+import { LoginView } from './components/LoginView';
 import { fetchConsultings } from './utils/api';
 import { DoorOpen, Loader2 } from 'lucide-react';
 
 function App() {
-  // 랜딩 페이지 표시 여부
+  // 화면 상태
   const [showLanding, setShowLanding] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
 
   // Auth 상태
   const [isAuthChecking, setIsAuthChecking] = useState(true);
@@ -154,11 +156,29 @@ function App() {
     );
   }
 
-  // 2. 랜딩 페이지 (첫 화면 - 로그인 페이지 아님!)
+  // 2. 로그인 화면 (내 프로젝트 보기 → 로그인)
+  if (showLogin) {
+    return (
+      <LoginView
+        onLoginSuccess={() => {
+          setShowLogin(false);
+          setShowLanding(false);
+        }}
+        onAdminLogin={handleAdminLogin}
+        onBack={() => {
+          setShowLogin(false);
+          setShowLanding(true);
+        }}
+      />
+    );
+  }
+
+  // 3. 랜딩 페이지 (첫 화면 - 로그인 페이지 아님!)
   if (showLanding) {
     return (
       <LandingView
         onStart={handleStartFromLanding}
+        onGoToLogin={() => { setShowLogin(true); setShowLanding(false); }}
         onAdminLogin={handleAdminLogin}
       />
     );
