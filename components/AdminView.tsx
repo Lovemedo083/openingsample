@@ -246,6 +246,55 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
     setSendingMessage(false);
   };
 
+  // PM 배정 선택 상태
+  const [assignPmId, setAssignPmId] = useState<string>('');
+
+  // PENDING_PM 프로젝트 수락 (PM 배정)
+  const acceptProject = async (projectId: string) => {
+    if (!assignPmId) {
+      alert('배정할 PM을 선택해주세요.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('startup_projects')
+      .update({
+        pm_id: assignPmId,
+        status: 'PM_ASSIGNED',
+        current_step: 7,
+        pm_approved_step: 7
+      })
+      .eq('id', projectId);
+
+    if (!error) {
+      const pm = pms.find(p => p.id === assignPmId);
+      // 로컬 상태 업데이트
+      setAllProjects(prev => prev.map(p =>
+        p.id === projectId ? { ...p, pm_id: assignPmId, pm_name: pm?.name || '', status: 'PM_ASSIGNED', current_step: 7 } : p
+      ));
+
+      // PM 배정 알림 메시지 전송
+      await supabase.from('project_messages').insert({
+        project_id: projectId,
+        sender_type: 'SYSTEM',
+        message: `🎉 담당 PM이 배정되었습니다!\n\n담당 PM: ${pm?.name || ''}님\n\n곧 PM이 연락드릴 예정입니다.`
+      });
+
+      // PM 환영 메시지
+      const pmGreeting = pm?.greeting_message || '안녕하세요! 담당 PM입니다. 창업 준비를 함께 도와드리겠습니다.';
+      await supabase.from('project_messages').insert({
+        project_id: projectId,
+        sender_type: 'PM',
+        message: `안녕하세요! 담당 PM ${pm?.name}입니다 😊\n\n${pmGreeting}\n\n곧 전화드리겠습니다!`
+      });
+
+      loadProjectMessages(projectId);
+      setAssignPmId('');
+    } else {
+      alert('PM 배정 실패: ' + error.message);
+    }
+  };
+
   // 프로젝트 단계 변경
   const changeProjectStep = async (projectId: string, newStep: number) => {
     const status = newStep >= 11 ? 'COMPLETED' : newStep >= 7 ? 'IN_PROGRESS' : 'PM_ASSIGNED';
@@ -1063,21 +1112,28 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                       <div className="divide-y max-h-[calc(100vh-300px)] overflow-y-auto">
                         {(projectFilterPM ? allProjects.filter(p => p.pm_id === projectFilterPM) : allProjects).map(project => {
                           const pm = pms.find(p => p.id === project.pm_id);
+                          const isPendingPM = project.status === 'PENDING_PM';
                           return (
                             <button
                               key={project.id}
                               onClick={() => { setSelectedProjectId(project.id); loadProjectMessages(project.id); }}
                               className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
                                 selectedProjectId === project.id ? 'bg-brand-50 border-l-4 border-brand-600' : ''
-                              }`}
+                              } ${isPendingPM ? 'border-l-4 border-amber-400 bg-amber-50/30' : ''}`}
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <span className="font-bold text-sm">{project.business_category}</span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                  project.current_step >= 8 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                }`}>
-                                  Step {project.current_step}
-                                </span>
+                                {isPendingPM ? (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold animate-pulse">
+                                    PM 대기
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    project.current_step >= 8 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    Step {project.current_step}
+                                  </span>
+                                )}
                               </div>
                               <p className="text-xs text-gray-500">
                                 강남구 {project.location_dong} · {project.store_size}평
@@ -1118,23 +1174,57 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                             </button>
                           )}
                         </div>
-                        {/* 단계 변경 */}
-                        {selectedProjectId && (
-                          <div className="flex items-center gap-2 pt-2 border-t">
-                            <span className="text-xs text-gray-500">단계:</span>
-                            <select
-                              className="flex-1 text-xs px-2 py-1.5 border rounded-lg bg-white"
-                              value={allProjects.find(p => p.id === selectedProjectId)?.current_step || 7}
-                              onChange={(e) => changeProjectStep(selectedProjectId, Number(e.target.value))}
-                            >
-                              {Object.entries(STEP_LABELS).map(([step, label]) => (
-                                <option key={step} value={step}>
-                                  {step}. {label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
+                        {/* PM 배정 / 단계 변경 */}
+                        {selectedProjectId && (() => {
+                          const selectedProject = allProjects.find(p => p.id === selectedProjectId);
+                          const isPendingPM = selectedProject?.status === 'PENDING_PM';
+
+                          if (isPendingPM) {
+                            return (
+                              <div className="pt-2 border-t space-y-2">
+                                <div className="flex items-center gap-2 bg-amber-50 px-3 py-2 rounded-lg">
+                                  <AlertCircle size={14} className="text-amber-600 shrink-0" />
+                                  <span className="text-xs font-bold text-amber-700">PM 배정 대기중인 프로젝트</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    className="flex-1 text-xs px-2 py-1.5 border rounded-lg bg-white"
+                                    value={assignPmId}
+                                    onChange={(e) => setAssignPmId(e.target.value)}
+                                  >
+                                    <option value="">PM 선택</option>
+                                    {pms.filter(p => p.is_available).map(pm => (
+                                      <option key={pm.id} value={pm.id}>{pm.name}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => acceptProject(selectedProjectId)}
+                                    className="px-4 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-lg hover:bg-brand-700 transition-colors"
+                                  >
+                                    프로젝트 수락
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="flex items-center gap-2 pt-2 border-t">
+                              <span className="text-xs text-gray-500">단계:</span>
+                              <select
+                                className="flex-1 text-xs px-2 py-1.5 border rounded-lg bg-white"
+                                value={selectedProject?.current_step || 7}
+                                onChange={(e) => changeProjectStep(selectedProjectId, Number(e.target.value))}
+                              >
+                                {Object.entries(STEP_LABELS).map(([step, label]) => (
+                                  <option key={step} value={step}>
+                                    {step}. {label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          );
+                        })()}
                       </div>
                       {selectedProjectId ? (
                         <>

@@ -19,6 +19,7 @@ interface ServiceJourneyViewProps {
   onBack?: () => void;
   isGuestMode?: boolean;
   onProjectCreated?: () => void;
+  onLoginRequired?: () => void;
 }
 
 interface ProjectManager {
@@ -272,7 +273,7 @@ const PM_STEP_LABELS: Record<number, string> = {
   12: '사후관리'
 };
 
-export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, isGuestMode = false, onProjectCreated }) => {
+export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, isGuestMode = false, onProjectCreated, onLoginRequired }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(!isGuestMode); // 게스트 모드는 로딩 없음
   const [project, setProject] = useState<Project | null>(null);
@@ -657,7 +658,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     return null;
   };
 
-  // 프로젝트 생성
+  // 프로젝트 생성 (PENDING_PM 상태로 저장)
   const createProject = async () => {
     setLoading(true);
 
@@ -665,109 +666,15 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     const doneItems = checklist.filter(i => i.status === 'done').map(i => i.title);
     const category = BUSINESS_CATEGORIES.find(c => c.id === businessCategory);
 
-    // 게스트 모드: 로컬 상태로만 처리 (실제 PM 배정)
-    if (isGuestMode) {
-      // 실제 PM 목록에서 랜덤 배정
-      const { data: realPMs } = await supabase
-        .from('project_managers')
-        .select('*')
-        .eq('is_available', true);
+    // 시스템 메시지 준비
+    let systemMsg = `📋 프로젝트 요약\n\n`;
+    systemMsg += `• 업종: ${category?.label}\n`;
+    systemMsg += `• 위치: 강남구 ${dong}\n`;
+    systemMsg += `• 규모: ${storeSize}평\n`;
+    systemMsg += `• 예상 비용: ${formatPrice(estimatedCosts.min)} ~ ${formatPrice(estimatedCosts.max)}원\n\n`;
+    if (doneItems.length > 0) systemMsg += `✅ 이미 준비됨: ${doneItems.join(', ')}\n`;
+    if (worryItems.length > 0) systemMsg += `⚠️ 도움 필요: ${worryItems.join(', ')}\n`;
 
-      let guestPM: ProjectManager;
-      if (realPMs && realPMs.length > 0) {
-        // 랜덤으로 PM 선택
-        const randomPM = realPMs[Math.floor(Math.random() * realPMs.length)];
-        guestPM = {
-          id: randomPM.id,
-          name: randomPM.name,
-          phone: randomPM.phone || '010-0000-0000',
-          profile_image: randomPM.profile_image || '/favicon-new.png',
-          specialties: randomPM.specialties || [],
-          introduction: randomPM.introduction || '강남구 전문 PM입니다.',
-          greeting_message: randomPM.greeting_message || '안녕하세요! 담당 PM입니다. 창업 준비를 함께 도와드리겠습니다.',
-          rating: randomPM.rating || 5.0,
-          completed_projects: randomPM.completed_projects || 0
-        };
-      } else {
-        // PM이 없으면 기본값 사용
-        guestPM = {
-          id: 'default-pm',
-          name: '오프닝 PM',
-          phone: '02-1234-5678',
-          profile_image: '/favicon-new.png',
-          specialties: ['카페', '음식점', '소매'],
-          introduction: '강남구 전문 PM입니다.',
-          greeting_message: '안녕하세요! 담당 PM입니다. 창업 준비를 함께 도와드리겠습니다.',
-          rating: 5.0,
-          completed_projects: 0
-        };
-      }
-      setAssignedPM(guestPM);
-
-      // 로컬 프로젝트 생성
-      const guestProject: Project = {
-        id: `guest-project-${Date.now()}`,
-        status: 'PM_ASSIGNED',
-        business_category: businessCategory,
-        location_dong: dong,
-        store_size: storeSize,
-        estimated_total: (estimatedCosts.min + estimatedCosts.max) / 2,
-        pm_id: guestPM.id,
-        pm: guestPM,
-        current_step: 7
-      };
-      setProject(guestProject);
-
-      // 로컬 메시지 생성
-      let systemMsg = `📋 프로젝트 요약\n\n`;
-      systemMsg += `• 업종: ${category?.label}\n`;
-      systemMsg += `• 위치: 강남구 ${dong}\n`;
-      systemMsg += `• 규모: ${storeSize}평\n`;
-      systemMsg += `• 예상 비용: ${formatPrice(estimatedCosts.min)} ~ ${formatPrice(estimatedCosts.max)}원\n\n`;
-
-      if (doneItems.length > 0) {
-        systemMsg += `✅ 이미 준비됨: ${doneItems.join(', ')}\n`;
-      }
-      if (worryItems.length > 0) {
-        systemMsg += `⚠️ 도움 필요: ${worryItems.join(', ')}\n`;
-      }
-
-      const pmGreeting = guestPM.greeting_message || guestPM.introduction || '강남구 창업 전문 PM입니다.';
-      const guestMessages: Message[] = [
-        {
-          id: 'guest-sys-1',
-          sender_type: 'SYSTEM',
-          message: systemMsg,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'guest-pm-welcome',
-          sender_type: 'PM',
-          message: `안녕하세요! 담당 PM ${guestPM.name}입니다 😊\n\n${pmGreeting}\n\n강남구 ${dong} ${category?.label} 창업을 함께 하게 되어 반갑습니다.\n\n${worryItems.length > 0 ? `말씀하신 ${worryItems[0]} 관련해서 제가 자세히 안내드릴게요.\n\n` : ''}이것은 게스트 모드 체험입니다. 실제 PM 상담을 원하시면 회원가입 후 이용해주세요!`,
-          created_at: new Date().toISOString()
-        }
-      ];
-
-      if (pmMessage.trim()) {
-        guestMessages.splice(1, 0, {
-          id: 'guest-user-1',
-          sender_type: 'USER',
-          message: pmMessage.trim(),
-          created_at: new Date().toISOString()
-        });
-      }
-
-      setMessages(guestMessages);
-      setCurrentStep(7);
-      setLoading(false);
-      if (onProjectCreated) onProjectCreated();
-      return;
-    }
-
-    // 실제 사용자: DB에 저장
-    const pm = await assignPM();
-
-    // 체크리스트 데이터 준비
     const checklistData = checklist.map(item => ({
       id: item.id,
       title: item.title,
@@ -775,6 +682,24 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       status: item.status
     }));
 
+    // 게스트 모드: 로그인 필요 → sessionStorage에 데이터 저장 후 로그인 페이지로
+    if (isGuestMode) {
+      const pendingData = {
+        businessCategory,
+        dong,
+        storeSize,
+        estimatedTotal: (estimatedCosts.min + estimatedCosts.max) / 2,
+        checklistData,
+        systemMessage: systemMsg,
+        pmMessage: pmMessage.trim() || null
+      };
+      sessionStorage.setItem('pending_project_data', JSON.stringify(pendingData));
+      setLoading(false);
+      if (onLoginRequired) onLoginRequired();
+      return;
+    }
+
+    // 인증된 사용자: PENDING_PM 상태로 프로젝트 생성 (PM 미배정)
     const { data: newProject } = await supabase
       .from('startup_projects')
       .insert([{
@@ -784,38 +709,20 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         location_dong: dong,
         store_size: storeSize,
         estimated_total: (estimatedCosts.min + estimatedCosts.max) / 2,
-        current_step: 7,
-        status: 'PM_ASSIGNED',
-        pm_id: pm?.id,
+        current_step: 6,
+        status: 'PENDING_PM',
         checklist_data: checklistData
       }])
       .select()
       .single();
 
-    if (newProject && pm) {
-      setProject(newProject);
-
-      // 초기 메시지 전송
-      let systemMsg = `📋 프로젝트 요약\n\n`;
-      systemMsg += `• 업종: ${category?.label}\n`;
-      systemMsg += `• 위치: 강남구 ${dong}\n`;
-      systemMsg += `• 규모: ${storeSize}평\n`;
-      systemMsg += `• 예상 비용: ${formatPrice(estimatedCosts.min)} ~ ${formatPrice(estimatedCosts.max)}원\n\n`;
-
-      if (doneItems.length > 0) {
-        systemMsg += `✅ 이미 준비됨: ${doneItems.join(', ')}\n`;
-      }
-      if (worryItems.length > 0) {
-        systemMsg += `⚠️ 도움 필요: ${worryItems.join(', ')}\n`;
-      }
-
+    if (newProject) {
       await supabase.from('project_messages').insert({
         project_id: newProject.id,
         sender_type: 'SYSTEM',
         message: systemMsg
       });
 
-      // 사용자 메시지
       if (pmMessage.trim()) {
         await supabase.from('project_messages').insert({
           project_id: newProject.id,
@@ -824,17 +731,6 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         });
       }
 
-      // PM 환영 메시지 (PM 개인 인사 메시지 사용)
-      const pmGreetingMsg = pm.greeting_message || '안녕하세요! 담당 PM입니다. 창업 준비를 함께 도와드리겠습니다.';
-      await supabase.from('project_messages').insert({
-        project_id: newProject.id,
-        sender_type: 'PM',
-        message: `안녕하세요! 담당 PM ${pm.name}입니다 😊\n\n${pmGreetingMsg}\n\n강남구 ${dong} ${category?.label} 창업을 함께 하게 되어 반갑습니다.\n\n${worryItems.length > 0 ? `말씀하신 ${worryItems[0]} 관련해서 제가 자세히 안내드릴게요.\n\n` : ''}곧 전화드리겠습니다!`
-      });
-
-      loadMessages(newProject.id);
-      subscribeToMessages(newProject.id);
-      setCurrentStep(7);
       if (onProjectCreated) onProjectCreated();
     }
     setLoading(false);
@@ -1840,7 +1736,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
             ) : currentStep === 6 ? (
               <>
                 <Rocket size={20} className="mr-2" />
-                PM 배정받기
+                {isGuestMode ? '로그인하고 PM 배정받기' : 'PM 배정 신청하기'}
               </>
             ) : (
               <>

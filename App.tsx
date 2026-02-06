@@ -75,6 +75,53 @@ function App() {
     }
   };
 
+  // sessionStorage에 저장된 대기 프로젝트 생성
+  const createProjectFromPending = async () => {
+    const pendingStr = sessionStorage.getItem('pending_project_data');
+    if (!pendingStr) return false;
+
+    try {
+      const data = JSON.parse(pendingStr);
+      const { data: newProject } = await supabase
+        .from('startup_projects')
+        .insert([{
+          business_category: data.businessCategory,
+          location_city: '서울시',
+          location_district: '강남구',
+          location_dong: data.dong,
+          store_size: data.storeSize,
+          estimated_total: data.estimatedTotal,
+          current_step: 6,
+          status: 'PENDING_PM',
+          checklist_data: data.checklistData
+        }])
+        .select()
+        .single();
+
+      if (newProject) {
+        if (data.systemMessage) {
+          await supabase.from('project_messages').insert({
+            project_id: newProject.id,
+            sender_type: 'SYSTEM',
+            message: data.systemMessage
+          });
+        }
+        if (data.pmMessage) {
+          await supabase.from('project_messages').insert({
+            project_id: newProject.id,
+            sender_type: 'USER',
+            message: data.pmMessage
+          });
+        }
+      }
+      sessionStorage.removeItem('pending_project_data');
+      return true;
+    } catch (err) {
+      console.error('Failed to create pending project:', err);
+      return false;
+    }
+  };
+
   const loadUserData = async () => {
     try {
       const consultings = await fetchConsultings();
@@ -83,12 +130,18 @@ function App() {
       const { data: projects } = await supabase
         .from('startup_projects')
         .select('id, status')
-        .in('status', ['PM_ASSIGNED', 'IN_PROGRESS'])
+        .in('status', ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS'])
         .order('created_at', { ascending: false })
         .limit(1);
 
       if (projects && projects.length > 0) {
         setHasActiveProject(true);
+      } else {
+        // 기존 프로젝트 없으면 → sessionStorage에서 대기 프로젝트 생성
+        const created = await createProjectFromPending();
+        if (created) {
+          setHasActiveProject(true);
+        }
       }
     } catch (error) {
       console.error('Failed to load user data:', error);
@@ -113,6 +166,11 @@ function App() {
     setShowLanding(false);
   };
 
+  // PM 배정받기 클릭 (게스트) → 로그인 페이지로 이동
+  const handleLoginRequired = () => {
+    setShowLogin(true);
+  };
+
   // Admin/PM 로그인 (숨김 기능)
   const handleAdminLogin = async (email: string, password: string): Promise<boolean> => {
     if (email === 'admin' && password === 'epdlfflalf1!') {
@@ -120,6 +178,7 @@ function App() {
       setIsAuthenticated(true);
       setUser({ id: 'admin', name: '관리자', phone: '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
       setShowLanding(false);
+      setShowLogin(false);
       return true;
     }
     if (password === 'pm1234!') {
@@ -134,6 +193,7 @@ function App() {
         setIsAuthenticated(true);
         setUser({ id: pmData.id, name: pmData.name + ' PM', phone: pmData.phone || '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
         setShowLanding(false);
+        setShowLogin(false);
         return true;
       }
     }
@@ -209,6 +269,7 @@ function App() {
               onBack={() => setShowLanding(true)}
               isGuestMode={!isAuthenticated}
               onProjectCreated={() => setHasActiveProject(true)}
+              onLoginRequired={handleLoginRequired}
             />
           )
         )}
@@ -218,6 +279,7 @@ function App() {
             onBack={() => { setCurrentTab('HOME'); setShowLanding(true); }}
             isGuestMode={!isAuthenticated}
             onProjectCreated={() => setHasActiveProject(true)}
+            onLoginRequired={handleLoginRequired}
           />
         )}
 

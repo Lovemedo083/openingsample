@@ -270,8 +270,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLog
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-100">
-             <button 
+          <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
+             {!isRegister && (
+               <button
+                  type="button"
+                  onClick={() => setIsRegister(true)}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold shadow-lg shadow-brand-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+               >
+                  <Sparkles size={18} className="text-yellow-300" />
+                  3초 회원가입
+               </button>
+             )}
+             <button
                 type="button"
                 onClick={handleGuestLogin}
                 className="w-full py-3 px-4 rounded-xl border-2 border-slate-100 text-slate-600 font-bold hover:bg-slate-50 hover:border-slate-200 transition-all flex items-center justify-center gap-2"
