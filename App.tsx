@@ -206,7 +206,7 @@ function App() {
             />
           ) : (
             <ServiceJourneyView
-              onBack={() => {}}
+              onBack={() => setShowLanding(true)}
               isGuestMode={!isAuthenticated}
             />
           )
@@ -214,7 +214,7 @@ function App() {
 
         {currentTab === 'PROJECT' && (
           <ServiceJourneyView
-            onBack={() => setCurrentTab('HOME')}
+            onBack={() => { setCurrentTab('HOME'); setShowLanding(true); }}
             isGuestMode={!isAuthenticated}
           />
         )}
