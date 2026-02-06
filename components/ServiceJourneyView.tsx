@@ -18,6 +18,7 @@ import {
 interface ServiceJourneyViewProps {
   onBack?: () => void;
   isGuestMode?: boolean;
+  onProjectCreated?: () => void;
 }
 
 interface ProjectManager {
@@ -271,7 +272,7 @@ const PM_STEP_LABELS: Record<number, string> = {
   12: '사후관리'
 };
 
-export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, isGuestMode = false }) => {
+export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, isGuestMode = false, onProjectCreated }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(!isGuestMode); // 게스트 모드는 로딩 없음
   const [project, setProject] = useState<Project | null>(null);
@@ -311,7 +312,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // UI 상태
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(() => !sessionStorage.getItem('onboarding_seen'));
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
@@ -599,6 +600,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
   // 온보딩 완료 후 실제 시작
   const completeOnboarding = () => {
+    sessionStorage.setItem('onboarding_seen', '1');
     setShowOnboarding(false);
     setCurrentStep(1);
   };
@@ -758,6 +760,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       setMessages(guestMessages);
       setCurrentStep(7);
       setLoading(false);
+      if (onProjectCreated) onProjectCreated();
       return;
     }
 
@@ -832,6 +835,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       loadMessages(newProject.id);
       subscribeToMessages(newProject.id);
       setCurrentStep(7);
+      if (onProjectCreated) onProjectCreated();
     }
     setLoading(false);
   };

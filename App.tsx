@@ -208,6 +208,7 @@ function App() {
             <ServiceJourneyView
               onBack={() => setShowLanding(true)}
               isGuestMode={!isAuthenticated}
+              onProjectCreated={() => setHasActiveProject(true)}
             />
           )
         )}
@@ -216,6 +217,7 @@ function App() {
           <ServiceJourneyView
             onBack={() => { setCurrentTab('HOME'); setShowLanding(true); }}
             isGuestMode={!isAuthenticated}
+            onProjectCreated={() => setHasActiveProject(true)}
           />
         )}
 
