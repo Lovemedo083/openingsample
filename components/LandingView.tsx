@@ -21,7 +21,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % BUSINESS_EXAMPLES.length);
-    }, 1300);
+    }, 1600);
     return () => clearInterval(interval);
   }, []);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -84,7 +84,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
                 <div
                   key={`badge-${currentIndex}`}
                   className="bg-amber-500 text-white font-extrabold text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap"
-                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)', animation: 'fadeIn 0.3s ease-out' }}
+                  style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)', animation: 'fadeIn 0.7s ease-in-out' }}
                 >
                   평균 {BUSINESS_EXAMPLES[currentIndex].saving}% 절약
                 </div>
@@ -94,7 +94,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
                 <div
                   key={`card-${currentIndex}`}
                   className="flex flex-col items-center justify-center"
-                  style={{ animation: 'fadeIn 0.3s ease-out' }}
+                  style={{ animation: 'fadeIn 0.7s ease-in-out' }}
                 >
                   <span className="text-4xl mb-1">{BUSINESS_EXAMPLES[currentIndex].emoji}</span>
                   <p className="text-xs font-medium text-slate-400">{BUSINESS_EXAMPLES[currentIndex].name}</p>
