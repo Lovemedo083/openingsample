@@ -26,7 +26,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
         setCurrentIndex(prev => (prev + 1) % BUSINESS_EXAMPLES.length);
         setIsAnimating(false);
       }, 300);
-    }, 3000);
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -85,42 +85,50 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
           <div className="my-6 flex flex-col items-center gap-3">
             <div className="relative w-48 h-48 rounded-full border-2 border-brand-200 flex items-center justify-center">
               {/* 절약 퍼센트 배지 - 오른쪽 위 */}
-              {BUSINESS_EXAMPLES.map((item, i) => (
-                <div
-                  key={`badge-${i}`}
-                  className="absolute -top-2 -right-3 z-10"
-                  style={{
-                    opacity: i === currentIndex && !isAnimating ? 1 : 0,
-                    transform: i === currentIndex && !isAnimating
-                      ? 'scale(1)'
-                      : 'scale(0.7)',
-                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}
-                >
-                  <div className="bg-amber-500 text-white font-extrabold text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
-                    {item.saving}% 절약
-                  </div>
-                </div>
-              ))}
-              {BUSINESS_EXAMPLES.map((item, i) => (
-                <div
-                  key={i}
-                  className="absolute inset-0 flex flex-col items-center justify-center"
-                  style={{
-                    opacity: i === currentIndex && !isAnimating ? 1 : 0,
-                    transform: i === currentIndex && !isAnimating
-                      ? 'translateY(0) scale(1)'
-                      : 'translateY(12px) scale(0.9)',
-                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                  }}
-                >
-                  <span className="text-4xl mb-1">{item.emoji}</span>
-                  <p className="text-xs font-medium text-slate-400">{item.name}</p>
-                  <p className="text-brand-700 font-black text-2xl tracking-tight mt-0.5">
-                    {item.cost}<span className="text-base font-bold text-brand-400">만원</span>
-                  </p>
-                </div>
-              ))}
+               {BUSINESS_EXAMPLES.map((item, i) => {
+                 const angle = (i * 90 - 45) * (Math.PI / 180);
+                 const xOffset = Math.cos(angle) * 52;
+                 const yOffset = Math.sin(angle) * 52;
+                 return (
+                   <div
+                     key={`badge-${i}`}
+                     className="absolute z-20"
+                     style={{
+                       top: `calc(50% + ${yOffset}px - 16px)`,
+                       left: `calc(50% + ${xOffset}px - 24px)`,
+                       opacity: i === currentIndex && !isAnimating ? 1 : 0.3,
+                       transform: i === currentIndex && !isAnimating
+                         ? 'scale(1)'
+                         : 'scale(0.75)',
+                       transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                     }}
+                   >
+                   <div className="bg-amber-500 text-white font-extrabold text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
+                     평균 {item.saving}% 절약
+                   </div>
+                   </div>
+                 );
+               })}
+               {BUSINESS_EXAMPLES.map((item, i) => (
+                 <div
+                   key={i}
+                   className="absolute inset-0 flex flex-col items-center justify-center"
+                   style={{
+                     opacity: i === currentIndex && !isAnimating ? 1 : 0.15,
+                     transform: i === currentIndex && !isAnimating
+                       ? 'translateY(0) scale(1)'
+                       : 'translateY(16px) scale(0.85)',
+                     transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                     zIndex: i === currentIndex && !isAnimating ? 10 : 0,
+                   }}
+                 >
+                   <span className="text-4xl mb-1">{item.emoji}</span>
+                   <p className="text-xs font-medium text-slate-400">{item.name}</p>
+                   <p className="text-brand-700 font-black text-2xl tracking-tight mt-0.5">
+                     {item.cost}<span className="text-base font-bold text-brand-400">만원</span>
+                   </p>
+                 </div>
+               ))}
             </div>
             {/* 인디케이터 */}
             <div className="flex gap-1.5">
