@@ -6,7 +6,7 @@ import {
   ChevronRight, Check, Clock, Loader2, Send, ArrowRight, X,
   Star, Award, MapPin, Calendar, CheckCircle, AlertTriangle,
   ClipboardList, Building2, ChevronDown, ExternalLink, AlertCircle,
-  Image, Eye, EyeOff, Paperclip, Plus, Trash2
+  Image, Eye, EyeOff, Paperclip, Plus, Trash2, CreditCard
 } from 'lucide-react';
 
 interface PMPortalViewProps {
@@ -89,30 +89,63 @@ interface PMProfile {
   is_available: boolean;
 }
 
-// PM 관리 단계 (1-6: 고객 입력, 7-12: PM 제어)
+// PM 관리 단계 (7-12: PM 제어)
 const STEP_LABELS: Record<number, string> = {
-  1: '업종 선택',
-  2: '위치 선택',
-  3: '상권 분석',
-  4: '매장 규모',
-  5: '체크리스트',
-  6: '비용 확인',
-  7: '상담 시작',      // PM 배정 후
-  8: '비용 컨설팅',    // 견적/업체 배정
-  9: '계약/착수',      // 계약 및 공사
-  10: '진행중',        // 공사/준비
-  11: '오픈 완료',     // 오픈!
-  12: '사후관리'       // 해피콜/A/S
+  7: '상담 시작',
+  8: '비용 견적',
+  9: '계약/시작',
+  10: '시공 진행',
+  11: '오픈 완료',
+  12: '사후관리'
 };
 
 // 각 단계별 설명 및 액션
 const STEP_DETAILS: Record<number, { description: string; actions: string[]; color: string }> = {
-  7: { description: 'PM 배정 완료, 상담 시작', actions: ['첫 인사', '요구사항 파악'], color: 'blue' },
+  7: { description: '매니저 배정 완료, 상담 시작', actions: ['첫 인사', '요구사항 파악'], color: 'blue' },
   8: { description: '비용 견적 및 협력업체 배정', actions: ['비용 보고서 전송', '업체 카드 전달'], color: 'purple' },
-  9: { description: '계약 진행 및 공사 착수', actions: ['계약 안내', '일정 공유'], color: 'orange' },
-  10: { description: '공사 및 오픈 준비 진행', actions: ['진행 상황 공유', '최종 점검'], color: 'yellow' },
+  9: { description: '계약 진행 및 시공 시작', actions: ['계약 안내', '일정 공유'], color: 'orange' },
+  10: { description: '시공 및 오픈 준비 진행', actions: ['진행 상황 공유', '최종 점검'], color: 'yellow' },
   11: { description: '오픈 완료! 축하드립니다', actions: ['축하 메시지', '리뷰 요청'], color: 'green' },
   12: { description: '사후관리 및 A/S 지원', actions: ['해피콜', 'A/S 접수'], color: 'slate' },
+};
+
+// 단계별 산출물 요구사항
+const STEP_REQUIREMENTS: Record<number, {
+  label: string;
+  requirements: { key: string; label: string; check: (msgs: any[], assigns: any[]) => boolean }[];
+}> = {
+  7: {
+    label: '상담 시작 → 비용 견적',
+    requirements: [
+      { key: 'pm_msg', label: '고객에게 메시지 1회 이상 발송', check: (msgs) => msgs.some(m => m.sender_type === 'PM') },
+      { key: 'user_reply', label: '고객 응답 1회 이상 확인', check: (msgs) => msgs.some(m => m.sender_type === 'USER') },
+    ]
+  },
+  8: {
+    label: '비용 견적 → 계약/시작',
+    requirements: [
+      { key: 'partner', label: '협력업체 1개 이상 배정', check: (_msgs, assigns) => assigns.length > 0 },
+      { key: 'report', label: '비용 보고서 발송', check: (msgs) => msgs.some(m => m.sender_type === 'PM' && m.message.includes('비용 컨설팅 보고서')) },
+    ]
+  },
+  9: {
+    label: '계약/시작 → 시공 진행',
+    requirements: [
+      { key: 'payment', label: '고객 계약금 결제 완료 (자동 전환)', check: () => true },
+    ]
+  },
+  10: {
+    label: '시공 진행 → 오픈 완료',
+    requirements: [
+      { key: 'progress', label: '시공 진행상황 공유 (메시지 1회 이상)', check: (msgs) => msgs.filter(m => m.sender_type === 'PM').length >= 3 },
+    ]
+  },
+  11: {
+    label: '오픈 완료 → 사후관리',
+    requirements: [
+      { key: 'happy', label: '해피콜 발송', check: (msgs) => msgs.some(m => m.message.includes('해피콜')) },
+    ]
+  },
 };
 
 const CHECKLIST_CATEGORIES = [
@@ -149,6 +182,9 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
     description: '',
   });
   const [showMobileSidebar, setShowMobileSidebar] = useState(true); // 모바일: 사이드바/메인 토글
+  const [showPaymentRequestModal, setShowPaymentRequestModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDesc, setPaymentDesc] = useState('계약금');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -453,12 +489,38 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
     const nextStep = selectedProject.current_step + 1;
     if (nextStep > 12) return;
 
+    // 산출물 요구사항 확인
+    const reqs = STEP_REQUIREMENTS[selectedProject.current_step];
+    if (reqs) {
+      const unmet = reqs.requirements.filter(r => !r.check(messages, assignments));
+      if (unmet.length > 0) {
+        const labels = unmet.map(r => `- ${r.label}`).join('\n');
+        if (!window.confirm(`아직 완료되지 않은 항목:\n${labels}\n\n그래도 다음 단계로 진행하시겠습니까?`)) {
+          return;
+        }
+      }
+    }
+
     await setProjectStep(nextStep);
   };
 
   // 특정 단계로 설정
   const setProjectStep = async (step: number, notify: boolean = true) => {
     if (!selectedProject) return;
+
+    // PM은 역행 불가
+    if (step < selectedProject.current_step) {
+      alert('단계를 되돌리려면 관리자에게 요청해주세요.');
+      return;
+    }
+
+    // 2단계 이상 점프 시 경고
+    const diff = step - selectedProject.current_step;
+    if (diff > 1) {
+      if (!window.confirm(`${diff}단계를 건너뜁니다. 정말 진행하시겠습니까?`)) {
+        return;
+      }
+    }
 
     const status = step >= 11 ? 'COMPLETED' : step >= 7 ? 'IN_PROGRESS' : 'PM_ASSIGNED';
 
@@ -477,7 +539,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
         await supabase.from('project_messages').insert({
           project_id: selectedProject.id,
           sender_type: 'SYSTEM',
-          message: `📍 **현재 단계: ${STEP_LABELS[step]}**\n\n${stepDetail?.description || ''}\n\n담당 PM이 진행 상황을 업데이트했습니다.`
+          message: `현재 단계: ${STEP_LABELS[step]}\n\n${stepDetail?.description || ''}\n\n담당 매니저가 진행 상황을 업데이트했습니다.`
         });
         loadMessages(selectedProject.id);
       }
@@ -496,13 +558,13 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
     const worryItems = selectedProject.checklist_data?.filter(i => i.status === 'worry') || [];
     const assignedItems = assignments.filter(a => a.status !== 'pending');
 
-    let reportMessage = `📊 **창업 비용 컨설팅 보고서**\n\n`;
-    reportMessage += `🏪 ${selectedProject.business_category} | 강남구 ${selectedProject.location_dong} | ${selectedProject.store_size}평\n\n`;
+    let reportMessage = `📊 창업 비용 컨설팅 보고서\n\n`;
+    reportMessage += `${selectedProject.business_category} | 강남구 ${selectedProject.location_dong} | ${selectedProject.store_size}평\n\n`;
     reportMessage += `━━━━━━━━━━━━━━━━━━━━\n\n`;
 
     // 배정된 협력업체 정보
     if (assignedItems.length > 0) {
-      reportMessage += `**🤝 배정된 협력업체**\n\n`;
+      reportMessage += `배정된 협력업체\n\n`;
       assignedItems.forEach(item => {
         const checklistItem = selectedProject.checklist_data?.find(c => c.id === item.checklist_item_id);
         reportMessage += `• ${checklistItem?.title || item.checklist_item_id}\n`;
@@ -510,9 +572,9 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
       });
     }
 
-    reportMessage += `**💰 총 예상 비용: ${(selectedProject.estimated_total / 10000).toFixed(0)}만원**\n\n`;
+    reportMessage += `총 예상 비용: ${(selectedProject.estimated_total / 10000).toFixed(0)}만원\n\n`;
     reportMessage += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-    reportMessage += `궁금한 점이 있으시면 언제든 문의해주세요! 😊`;
+    reportMessage += `궁금한 점이 있으시면 언제든 문의해주세요.`;
 
     await supabase.from('project_messages').insert({
       project_id: selectedProject.id,
@@ -528,7 +590,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
   const sendHappyCallMessage = async () => {
     if (!selectedProject) return;
 
-    const message = `📞 **오픈 후 해피콜**\n\n안녕하세요! 담당 PM입니다.\n\n${selectedProject.business_category} 오픈 이후 운영은 잘 되고 계신가요?\n\n혹시 추가로 도움이 필요하신 부분이 있으시면 언제든 말씀해주세요.\n\n• 장비 A/S 필요하신 부분\n• 추가 인테리어/보수 필요하신 부분\n• 마케팅/홍보 지원\n• 기타 운영 관련 문의\n\n항상 응원하겠습니다! 🎉`;
+    const message = `오픈 후 해피콜\n\n안녕하세요, 담당 매니저입니다.\n\n${selectedProject.business_category} 오픈 이후 운영은 잘 되고 계신가요?\n\n혹시 추가로 도움이 필요하신 부분이 있으시면 언제든 말씀해주세요.\n\n- 장비 A/S 필요하신 부분\n- 추가 인테리어/보수 필요하신 부분\n- 마케팅/홍보 지원\n- 기타 운영 관련 문의\n\n항상 응원하겠습니다.`;
 
     await supabase.from('project_messages').insert({
       project_id: selectedProject.id,
@@ -537,6 +599,91 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
     });
 
     loadMessages(selectedProject.id);
+  };
+
+  // 결제 요청 전송
+  const sendPaymentRequest = async () => {
+    if (!selectedProject || !paymentAmount.trim()) return;
+
+    const amount = parseInt(paymentAmount.replace(/,/g, ''), 10);
+    if (isNaN(amount) || amount <= 0) {
+      alert('올바른 금액을 입력해주세요.');
+      return;
+    }
+    if (amount > 1_000_000_000) {
+      alert('결제 금액이 너무 큽니다. (최대 10억원)');
+      return;
+    }
+    if (amount > selectedProject.estimated_total * 1.5) {
+      if (!window.confirm(`요청 금액이 예상 비용(${(selectedProject.estimated_total / 10000).toFixed(0)}만원)보다 큽니다.\n계속하시겠습니까?`)) {
+        return;
+      }
+    }
+
+    // 기존 pending 결제 확인
+    const { data: existingPending } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('furniture_listing_id', selectedProject.id)
+      .eq('status', 'pending');
+
+    if (existingPending && existingPending.length > 0) {
+      if (!window.confirm('이미 대기 중인 결제 요청이 있습니다.\n기존 요청을 취소하고 새로 보내시겠습니까?')) {
+        return;
+      }
+      // 기존 pending 결제 취소
+      for (const p of existingPending) {
+        await supabase.from('payments').update({ status: 'cancelled' }).eq('id', p.id);
+      }
+    }
+
+    // payments 레코드 생성 (pending 상태)
+    const { data: payment, error: payError } = await supabase
+      .from('payments')
+      .insert({
+        furniture_listing_id: selectedProject.id,
+        amount,
+        status: 'pending',
+        payment_method: 'toss',
+      })
+      .select()
+      .single();
+
+    if (payError || !payment) {
+      alert('결제 요청 생성에 실패했습니다.');
+      console.error('Payment request error:', payError);
+      return;
+    }
+
+    // 결제 요청 메시지 전송
+    const formattedAmount = amount.toLocaleString('ko-KR');
+    await supabase.from('project_messages').insert({
+      project_id: selectedProject.id,
+      sender_type: 'PM',
+      message: `💳 결제 요청\n\n금액: ${formattedAmount}원\n내용: ${paymentDesc}\n\n아래 결제하기 버튼을 눌러 결제를 진행해주세요.`,
+      attachments: [{
+        type: 'payment_request',
+        url: '',
+        name: paymentDesc,
+        payment_id: payment.id,
+        amount: amount,
+      }]
+    });
+
+    loadMessages(selectedProject.id);
+    setShowPaymentRequestModal(false);
+    setPaymentAmount('');
+    setPaymentDesc('계약금');
+  };
+
+  // 금액 입력 포맷팅 (1000단위 콤마)
+  const handleAmountChange = (value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue) {
+      setPaymentAmount(parseInt(numericValue, 10).toLocaleString('ko-KR'));
+    } else {
+      setPaymentAmount('');
+    }
   };
 
   const updateProfile = async () => {
@@ -789,7 +936,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                           : 'bg-yellow-100 text-yellow-700'
                     }`}
                   >
-                    📍 {STEP_LABELS[selectedProject.current_step]} ▼
+                    {STEP_LABELS[selectedProject.current_step]} ▼
                   </button>
                   {selectedProject.current_step >= 7 && selectedProject.current_step < 12 && (
                     <Button onClick={advanceProjectStep} className="text-sm">
@@ -809,6 +956,28 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                   )}
                 </div>
               </div>
+
+              {/* 단계별 산출물 체크리스트 */}
+              {selectedProject.current_step >= 7 && selectedProject.current_step < 12 && STEP_REQUIREMENTS[selectedProject.current_step] && (
+                <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-xs font-bold text-amber-800 mb-2">
+                    {STEP_REQUIREMENTS[selectedProject.current_step].label}
+                  </p>
+                  <div className="space-y-1.5">
+                    {STEP_REQUIREMENTS[selectedProject.current_step].requirements.map(req => {
+                      const met = req.check(messages, assignments);
+                      return (
+                        <div key={req.key} className="flex items-center gap-2 text-xs">
+                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[10px] font-bold ${met ? 'bg-green-500' : 'bg-gray-300'}`}>
+                            {met ? '✓' : ''}
+                          </span>
+                          <span className={met ? 'text-green-700' : 'text-gray-500'}>{req.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* 고객 상담 조건 요약 */}
               <div className="mt-4 p-4 bg-slate-50 rounded-xl">
@@ -1171,6 +1340,13 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                     >
                       {uploadingImage ? <Loader2 className="animate-spin" size={20} /> : <Image size={20} className="text-gray-500" />}
                     </button>
+                    <button
+                      onClick={() => setShowPaymentRequestModal(true)}
+                      className="p-3 bg-orange-100 rounded-xl hover:bg-orange-200 transition-colors"
+                      title="결제 요청 보내기"
+                    >
+                      <CreditCard size={20} className="text-orange-500" />
+                    </button>
                     <input
                       type="text"
                       placeholder="메시지를 입력하세요..."
@@ -1400,6 +1576,80 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                   전송하기
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 결제 요청 모달 */}
+      {showPaymentRequestModal && selectedProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden m-4">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="text-xl font-bold">💳 결제 요청 보내기</h2>
+              <button
+                onClick={() => {
+                  setShowPaymentRequestModal(false);
+                  setPaymentAmount('');
+                  setPaymentDesc('계약금');
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">프로젝트</p>
+                <p className="font-bold">{selectedProject.business_category} · {selectedProject.location_dong} · {selectedProject.store_size}평</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">결제 금액 (원) *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={paymentAmount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  placeholder="예: 5,000,000"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-lg font-bold"
+                />
+                {paymentAmount && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {parseInt(paymentAmount.replace(/,/g, ''), 10) >= 10000
+                      ? `${(parseInt(paymentAmount.replace(/,/g, ''), 10) / 10000).toFixed(0)}만원`
+                      : `${paymentAmount}원`
+                    }
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">결제 내용</label>
+                <input
+                  type="text"
+                  value={paymentDesc}
+                  onChange={(e) => setPaymentDesc(e.target.value)}
+                  placeholder="예: 계약금, 중도금, 잔금"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                <p className="text-xs text-orange-700">
+                  고객 채팅에 결제 요청이 전송됩니다.<br/>
+                  고객이 결제하기 버튼을 누르면 토스페이로 결제가 진행됩니다.
+                </p>
+              </div>
+
+              <Button
+                fullWidth
+                onClick={sendPaymentRequest}
+                disabled={!paymentAmount.trim()}
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                <CreditCard size={18} className="mr-2" />
+                결제 요청 보내기
+              </Button>
             </div>
           </div>
         </div>

@@ -115,17 +115,11 @@ const PARTNER_CATEGORIES = [
 
 // 프로젝트 단계 라벨
 const STEP_LABELS: Record<number, string> = {
-  1: '업종선택',
-  2: '위치선택',
-  3: '상권분석',
-  4: '매장규모',
-  5: '체크리스트',
-  6: '비용산출',
-  7: '상담시작',
-  8: '비용컨설팅',
-  9: '계약/착수',
-  10: '진행중',
-  11: '오픈완료',
+  7: '상담 시작',
+  8: '비용 견적',
+  9: '계약/시작',
+  10: '시공 진행',
+  11: '오픈 완료',
   12: '사후관리'
 };
 
@@ -182,6 +176,21 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
 
   useEffect(() => {
     loadAllData();
+
+    // 신규 프로젝트 실시간 알림
+    const channel = supabase
+      .channel('admin-new-projects')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'startup_projects',
+      }, () => {
+        setNewProjectAlert(true);
+        loadAllProjects();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const loadAllData = async () => {
@@ -248,6 +257,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
 
   // PM 배정 선택 상태
   const [assignPmId, setAssignPmId] = useState<string>('');
+  // 신규 프로젝트 알림
+  const [newProjectAlert, setNewProjectAlert] = useState(false);
 
   // PENDING_PM 프로젝트 수락 (PM 배정)
   const acceptProject = async (projectId: string) => {
@@ -277,15 +288,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
       await supabase.from('project_messages').insert({
         project_id: projectId,
         sender_type: 'SYSTEM',
-        message: `🎉 담당 PM이 배정되었습니다!\n\n담당 PM: ${pm?.name || ''}님\n\n곧 PM이 연락드릴 예정입니다.`
+        message: `담당 매니저가 배정되었습니다 🎉\n\n담당 매니저: ${pm?.name || ''}님\n\n곧 연락드릴 예정입니다.`
       });
 
       // PM 환영 메시지
-      const pmGreeting = pm?.greeting_message || '안녕하세요! 담당 PM입니다. 창업 준비를 함께 도와드리겠습니다.';
+      const pmGreeting = pm?.greeting_message || '안녕하세요! 담당 매니저입니다. 창업 준비를 함께 도와드리겠습니다.';
       await supabase.from('project_messages').insert({
         project_id: projectId,
         sender_type: 'PM',
-        message: `안녕하세요! 담당 PM ${pm?.name}입니다 😊\n\n${pmGreeting}\n\n곧 전화드리겠습니다!`
+        message: `안녕하세요, 담당 매니저 ${pm?.name}입니다.\n\n${pmGreeting}\n\n곧 전화드리겠습니다.`
       });
 
       loadProjectMessages(projectId);
@@ -297,6 +308,38 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
 
   // 프로젝트 단계 변경
   const changeProjectStep = async (projectId: string, newStep: number) => {
+    const currentProject = allProjects.find(p => p.id === projectId);
+    if (!currentProject) return;
+
+    const currentStep = currentProject.current_step;
+    const diff = newStep - currentStep;
+
+    // 같은 단계면 무시
+    if (diff === 0) return;
+
+    // 2단계 이상 점프 시 경고
+    if (Math.abs(diff) > 1) {
+      if (!window.confirm(`현재 ${currentStep}단계에서 ${newStep}단계로 ${diff > 0 ? '건너뛰기' : '되돌리기'}합니다.\n정말 진행하시겠습니까?`)) {
+        return;
+      }
+    }
+
+    // Step 9→10 전환 시 결제 확인
+    if (newStep === 10 && currentStep === 9) {
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('furniture_listing_id', projectId)
+        .eq('status', 'completed')
+        .limit(1);
+
+      if (!payments || payments.length === 0) {
+        if (!window.confirm('이 프로젝트에 완료된 결제가 없습니다.\n결제 없이 시공 단계로 진행하시겠습니까?')) {
+          return;
+        }
+      }
+    }
+
     const status = newStep >= 11 ? 'COMPLETED' : newStep >= 7 ? 'IN_PROGRESS' : 'PM_ASSIGNED';
 
     const { error } = await supabase
@@ -318,7 +361,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
       await supabase.from('project_messages').insert({
         project_id: projectId,
         sender_type: 'SYSTEM',
-        message: `📍 프로젝트 단계가 "${STEP_LABELS[newStep]}"(으)로 변경되었습니다.`
+        message: `프로젝트 단계가 "${STEP_LABELS[newStep]}"(으)로 변경되었습니다.`
       });
       loadProjectMessages(projectId);
     } else {
@@ -430,7 +473,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
       profile_image: pmForm.profile_image,
       specialties: pmForm.specialties || [],
       introduction: pmForm.introduction || '',
-      greeting_message: pmForm.greeting_message || '안녕하세요! 담당 PM입니다. 창업 준비를 함께 도와드리겠습니다.',
+      greeting_message: pmForm.greeting_message || '안녕하세요! 담당 매니저입니다. 창업 준비를 함께 도와드리겠습니다.',
       completed_projects: pmForm.completed_projects || 0,
       is_available: pmForm.is_available ?? true,
       rating: pmForm.rating || 5.0
@@ -510,7 +553,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id === 'projects') setNewProjectAlert(false);
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold transition-colors ${
                     activeTab === tab.id
                       ? 'bg-brand-50 text-brand-700'
@@ -518,7 +564,15 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                   }`}
                 >
                   <Icon size={20} />
-                  {tab.label}
+                  <span className="flex-1 text-left">{tab.label}</span>
+                  {tab.id === 'projects' && (() => {
+                    const pendingCount = allProjects.filter(p => p.status === 'PENDING_PM').length;
+                    return pendingCount > 0 ? (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${newProjectAlert ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-100 text-amber-700'}`}>
+                        {pendingCount}
+                      </span>
+                    ) : null;
+                  })()}
                 </button>
               );
             })}
@@ -1530,11 +1584,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                 <label className="block text-sm font-bold text-gray-700 mb-1">자동 인사 메시지 (프로젝트 배정 시 첫 메시지)</label>
                 <textarea
                   className="w-full px-4 py-2 border rounded-lg resize-none h-24"
-                  placeholder="안녕하세요! 담당 PM입니다. 창업 준비를 함께 도와드리겠습니다."
+                  placeholder="안녕하세요! 담당 매니저입니다. 창업 준비를 함께 도와드리겠습니다."
                   value={pmForm.greeting_message || ''}
                   onChange={(e) => setPMForm({ ...pmForm, greeting_message: e.target.value })}
                 />
-                <p className="text-xs text-gray-500 mt-1">고객에게 PM 배정 시 자동으로 전송되는 첫 인사 메시지입니다.</p>
+                <p className="text-xs text-gray-500 mt-1">고객에게 매니저 배정 시 자동으로 전송되는 첫 인사 메시지입니다.</p>
               </div>
 
               {/* 태그/전문분야 */}
@@ -1616,15 +1670,21 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg min-w-[60px] ${
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === 'projects') setNewProjectAlert(false);
+                }}
+                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg min-w-[60px] relative ${
                   activeTab === tab.id
                     ? 'text-brand-600'
                     : 'text-gray-400'
                 }`}
               >
                 <Icon size={20} />
-                <span className="text-[10px] font-medium">{tab.label}</span>
+                <span className="text-xs font-medium">{tab.label}</span>
+                {tab.id === 'projects' && newProjectAlert && (
+                  <span className="absolute top-0 right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                )}
               </button>
             );
           })}

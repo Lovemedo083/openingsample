@@ -116,8 +116,8 @@ const CHECKLIST_COMMON: Omit<ChecklistItem, 'status'>[] = [
   { id: 'pos_system', category: '장비/세팅', title: 'POS·키오스크', description: '결제 시스템 설치', icon: Monitor, estimatedCost: { min: 50, max: 150, unit: '만원' }, isRequired: true },
   { id: 'cctv', category: '장비/세팅', title: 'CCTV·인터넷', description: '보안 및 통신 설치', icon: Eye, estimatedCost: { min: 50, max: 150, unit: '만원' }, isRequired: true },
   // PM 지원
-  { id: 'pm_admin', category: 'PM 지원', title: '인허가·서류 대행', description: 'PM이 행정 절차를 도와드려요', icon: FileText, estimatedCost: { min: 0, max: 0, unit: 'PM 지원' }, isRequired: false },
-  { id: 'pm_marketing', category: 'PM 지원', title: '마케팅 세팅', description: '네이버지도·배달앱 등록 대행', icon: Target, estimatedCost: { min: 0, max: 0, unit: 'PM 지원' }, isRequired: false },
+  { id: 'pm_admin', category: '매니저 지원', title: '인허가·서류 대행', description: '담당 매니저가 행정 절차를 도와드려요', icon: FileText, estimatedCost: { min: 0, max: 0, unit: '매니저 지원' }, isRequired: false },
+  { id: 'pm_marketing', category: '매니저 지원', title: '마케팅 세팅', description: '네이버지도·배달앱 등록 대행', icon: Target, estimatedCost: { min: 0, max: 0, unit: '매니저 지원' }, isRequired: false },
 ];
 
 const CHECKLIST_BY_CATEGORY: Record<string, Omit<ChecklistItem, 'status'>[]> = {
@@ -237,7 +237,7 @@ const JOURNEY_STEPS = [
   { step: 4, title: '매장 규모', description: '예상 평수를 입력하세요' },
   { step: 5, title: '준비 체크리스트', description: '현재 상황을 체크해주세요' },
   { step: 6, title: '예상 비용', description: '창업 비용을 확인하세요' },
-  { step: 7, title: 'PM 배정', description: '전담 매니저가 배정됩니다' },
+  { step: 7, title: '매니저 배정', description: '전담 매니저가 배정됩니다' },
 ];
 
 // 동별 카카오맵 좌표
@@ -266,8 +266,8 @@ const STEP_COLORS: Record<number, { bg: string; text: string; accent: string }> 
 
 const PM_STEP_LABELS: Record<number, string> = {
   7: '상담 시작',
-  8: '비용 컨설팅',
-  9: '계약/착수',
+  8: '비용 견적',
+  9: '계약/시작',
   10: '진행중',
   11: '오픈 완료',
   12: '사후관리'
@@ -311,6 +311,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const touchStartRef = useRef<number>(0);
 
   // UI 상태
   const [showOnboarding, setShowOnboarding] = useState(() => !sessionStorage.getItem('onboarding_seen'));
@@ -338,7 +339,9 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   const loadExistingProject = async () => {
     setLoading(true);
 
-    const { data: projects } = await supabase
+    // 현재 유저의 프로젝트만 조회
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    let query = supabase
       .from('startup_projects')
       .select(`
         *,
@@ -347,6 +350,8 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       .in('status', ['DRAFT', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE', 'POST_SERVICE'])
       .order('created_at', { ascending: false })
       .limit(1);
+    if (authUser) query = query.eq('user_id', authUser.id);
+    const { data: projects } = await query;
 
     if (projects && projects.length > 0) {
       const proj = projects[0];
@@ -450,7 +455,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         const pmResponse: Message = {
           id: `guest-pm-${Date.now()}`,
           sender_type: 'PM',
-          message: '안녕하세요! 게스트 모드에서는 메시지 기능을 체험해보실 수 있습니다. 실제 PM과 상담을 원하시면 회원가입 후 이용해주세요 😊',
+          message: '안녕하세요. 게스트 모드에서는 메시지 기능을 체험해보실 수 있습니다. 실제 PM과 상담을 원하시면 회원가입 후 이용해주세요.',
           created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, pmResponse]);
@@ -682,7 +687,8 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       status: item.status
     }));
 
-    // 게스트 모드: 로그인 필요 → sessionStorage에 데이터 저장 후 로그인 페이지로
+    // 게스트 모드: 로그인 필요 → localStorage에 데이터 저장 후 로그인 페이지로
+    // localStorage는 탭을 닫거나 새 탭에서도 유지됨 (sessionStorage는 탭 종속)
     if (isGuestMode) {
       const pendingData = {
         businessCategory,
@@ -693,16 +699,18 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         systemMessage: systemMsg,
         pmMessage: pmMessage.trim() || null
       };
-      sessionStorage.setItem('pending_project_data', JSON.stringify(pendingData));
+      localStorage.setItem('pending_project_data', JSON.stringify(pendingData));
       setLoading(false);
       if (onLoginRequired) onLoginRequired();
       return;
     }
 
     // 인증된 사용자: PENDING_PM 상태로 프로젝트 생성 (PM 미배정)
+    const { data: { user: authUser } } = await supabase.auth.getUser();
     const { data: newProject } = await supabase
       .from('startup_projects')
       .insert([{
+        user_id: authUser?.id,
         business_category: businessCategory,
         location_city: '서울시',
         location_district: '강남구',
@@ -740,7 +748,10 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     if (currentStep === 6) {
       createProject();
     } else if (currentStep === 1 && hasRealEstateContract === true) {
-      // 부동산 계약 완료 → 위치/상권 분석 건너뛰고 매장 규모로
+      // 부동산 계약 완료 → 위치 선택은 하되, 상권 분석은 건너뛰고 매장 규모로
+      setCurrentStep(2);
+    } else if (currentStep === 2 && hasRealEstateContract === true) {
+      // 부동산 계약 완료 → 상권 분석 건너뛰고 매장 규모로
       setCurrentStep(4);
     } else {
       setCurrentStep(prev => Math.min(prev + 1, 6));
@@ -749,8 +760,8 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
   const goToPrevStep = () => {
     if (currentStep === 4 && hasRealEstateContract === true) {
-      // 매장 규모에서 뒤로 가면 업종 선택으로
-      setCurrentStep(1);
+      // 매장 규모에서 뒤로 가면 위치 선택으로
+      setCurrentStep(2);
     } else {
       setCurrentStep(prev => Math.max(prev - 1, 1));
     }
@@ -779,96 +790,112 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     );
   }
 
-  // 서비스 안내 페이지 (토스 감성 - 스크롤 없음, 한 화면)
-  if (showOnboarding) {
-    return (
-      <div className="fixed inset-0 z-[60] bg-gradient-to-b from-[#0d1b3e] via-[#1a2d5a] to-[#0f1d40] flex flex-col overflow-hidden">
-        {/* 별 배경 */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(25)].map((_, i) => (
-            <div key={i} className="absolute w-[2px] h-[2px] bg-white rounded-full"
-              style={{ top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, opacity: 0.15+Math.random()*0.4, animation: `pulse ${2+Math.random()*3}s ease-in-out infinite ${Math.random()*2}s` }} />
-          ))}
-          <div className="absolute top-[6%] right-[8%]" style={{ animation: 'float-rocket 6s ease-in-out infinite' }}>
-            <Rocket size={24} className="text-brand-400/80 -rotate-45" />
-          </div>
-          <div className="absolute top-[40%] left-[4%]" style={{ animation: 'float-rocket 8s ease-in-out infinite 2s' }}>
-            <Rocket size={16} className="text-indigo-400/50 rotate-12" />
-          </div>
-          <div className="absolute top-[12%] left-[18%]" style={{ animation: 'twinkle 3s ease-in-out infinite' }}>
-            <Sparkles size={14} className="text-yellow-300/70" />
-          </div>
-          <div className="absolute top-[50%] right-[12%]" style={{ animation: 'twinkle 4s ease-in-out infinite 1s' }}>
-            <Sparkles size={12} className="text-cyan-300/60" />
-          </div>
-          <div className="absolute top-[-15%] right-[-15%] w-[50%] h-[50%] bg-brand-500/15 rounded-full blur-3xl" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[35%] h-[35%] bg-indigo-500/10 rounded-full blur-3xl" />
-        </div>
+  // 온보딩 슬라이드 데이터
+  const ONBOARDING_SLIDES = [
+    { image: '/onboarding-1.png', title: '업종을 선택하세요', desc: '치킨, 카페, 주점 등\n원하는 업종을 간편하게 선택' },
+    { image: '/onboarding-2.png', title: '무료 입지 분석', desc: '원하는 지역의 상권, 유동인구\n경쟁점포를 무료로 분석해드려요' },
+    { image: '/onboarding-3.png', title: '예상 비용을 확인하세요', desc: '체크리스트로 필요한 항목을 파악하고\n항목별 예상 비용을 미리 확인하세요' },
+    { image: '/onboarding-4.png', title: '전담 매니저 + 상세 보고서', desc: '전담 매니저가 배정되고\n비용 분석 보고서를 받아보세요' },
+  ];
 
+  // 서비스 안내 페이지 (슬라이드형)
+  if (showOnboarding) {
+    const slide = ONBOARDING_SLIDES[onboardingStep];
+    const isLast = onboardingStep === ONBOARDING_SLIDES.length - 1;
+
+    return (
+      <div
+        className="fixed inset-0 z-[60] bg-white flex flex-col overflow-hidden"
+        onTouchStart={(e) => { touchStartRef.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          const delta = e.changedTouches[0].clientX - touchStartRef.current;
+          if (delta < -50 && onboardingStep < ONBOARDING_SLIDES.length - 1) {
+            setOnboardingStep(prev => prev + 1);
+          }
+          if (delta > 50 && onboardingStep > 0) {
+            setOnboardingStep(prev => prev - 1);
+          }
+        }}
+      >
         <style>{`
-          @keyframes float-rocket { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
-          @keyframes twinkle { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1.2)} }
-          @keyframes fade-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes slide-fade-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         `}</style>
 
-        {/* 로고 + 타이틀 */}
-        <div className="pt-[max(env(safe-area-inset-top),12px)] shrink-0 relative z-10">
-          <div className="px-6 pt-8 pb-3 text-center">
-            <div className="w-12 h-12 rounded-2xl shadow-xl shadow-brand-500/30 mx-auto mb-3 overflow-hidden ring-2 ring-white/20">
-              <img src="/favicon-new.png" alt="오프닝" className="w-full h-full" />
-            </div>
-            <h1 className="text-xl font-black text-white leading-tight">
-              창업, 이렇게 쉬웠나요?
-            </h1>
-            <p className="text-xs text-blue-200/60 mt-1">4단계로 끝나는 창업 준비</p>
+        {/* 상단바 */}
+        <div className="pt-[max(env(safe-area-inset-top),12px)] px-5 flex justify-end items-center shrink-0">
+          <button
+            onClick={completeOnboarding}
+            className="text-sm text-slate-400 font-medium py-3 px-1 active:text-slate-600"
+          >
+            건너뛰기
+          </button>
+        </div>
+
+        {/* 일러스트 영역 (상단 절반) */}
+        <div className="flex-1 flex items-end justify-center pb-6">
+          <div
+            key={`img-${onboardingStep}`}
+            style={{ animation: 'slide-fade-in 0.35s ease-out' }}
+          >
+            <img
+              src={slide.image}
+              alt={slide.title}
+              className="w-56 h-56 object-contain mx-auto"
+            />
           </div>
         </div>
 
-        {/* 4단계 카드 - flex-1로 남은 공간 채움 */}
-        <div className="flex-1 flex flex-col justify-center px-5 gap-2.5 relative z-10 min-h-0">
-          {[
-            { icon: Store, n: '1', title: '업종 선택', desc: '간편하게 업종을 선택하세요', g: 'from-amber-400 to-orange-500' },
-            { icon: MapPinned, n: '2', title: '무료 입지 분석', desc: '입지 분석 리포트를 무료로 받아보세요', g: 'from-cyan-400 to-blue-500' },
-            { icon: FileText, n: '3', title: '창업 체크리스트', desc: '필요한 도움을 미리 파악하세요', g: 'from-emerald-400 to-green-500' },
-            { icon: HeartHandshake, n: '4', title: 'AI 분석 + PM 배정', desc: '전담 PM이 끝까지 함께합니다', g: 'from-violet-400 to-purple-500' },
-          ].map((f, i) => {
-            const Icon = f.icon;
-            return (
-              <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 rounded-2xl bg-white/[0.08] backdrop-blur-sm border border-white/[0.08]"
-                style={{ animation: `fade-in 0.4s ease-out ${i*0.1}s both` }}>
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.g} flex items-center justify-center shrink-0 shadow-md`}>
-                  <Icon size={20} className="text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white text-[13px] leading-tight">{f.title}</p>
-                  <p className="text-[11px] text-blue-200/50 leading-tight mt-0.5">{f.desc}</p>
-                </div>
-                <span className="text-[10px] font-black text-white/20 shrink-0">{f.n}</span>
-              </div>
-            );
-          })}
-
-          {/* 무료 배지 */}
-          <div className="text-center py-2 mt-1" style={{ animation: 'fade-in 0.4s ease-out 0.5s both' }}>
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white/80 bg-white/[0.08] px-4 py-1.5 rounded-full border border-white/[0.06]">
-              <Sparkles size={12} className="text-yellow-400" />
-              모든 분석 100% 무료
-            </span>
+        {/* 텍스트 영역 (하단 절반) */}
+        <div className="flex-1 flex flex-col px-8">
+          <div
+            key={`txt-${onboardingStep}`}
+            className="pt-4"
+            style={{ animation: 'slide-fade-in 0.35s ease-out 0.05s both' }}
+          >
+            <h2 className="text-[22px] font-black text-slate-900 text-center leading-tight mb-3">
+              {slide.title}
+            </h2>
+            <p className="text-[15px] text-slate-400 text-center leading-relaxed whitespace-pre-line">
+              {slide.desc}
+            </p>
           </div>
         </div>
 
-        {/* 하단 버튼 */}
-        <div className="px-5 shrink-0 relative z-10"
-          style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
-          <button onClick={completeOnboarding}
-            className="w-full bg-white text-[#0d1b3e] font-black py-3.5 rounded-2xl shadow-2xl shadow-white/20 active:scale-[0.97] transition-all flex items-center justify-center gap-2 text-[15px]">
-            <Rocket size={18} className="text-brand-600" />
-            시작하기
+        {/* 하단: 인디케이터 + 버튼 */}
+        <div className="px-6 shrink-0" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
+          <div className="flex justify-center gap-2 mb-5">
+            {ONBOARDING_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setOnboardingStep(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === onboardingStep ? 'w-6 bg-brand-500' : 'w-1.5 bg-slate-200'
+                }`}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+              if (isLast) {
+                completeOnboarding();
+              } else {
+                setOnboardingStep(prev => prev + 1);
+              }
+            }}
+            className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-4 rounded-2xl active:scale-[0.97] transition-all text-base"
+          >
+            {isLast ? '시작하기' : '다음'}
           </button>
-          <button onClick={() => { if (onBack) onBack(); }}
-            className="w-full mt-1 text-blue-300/40 text-[11px] font-medium py-2">
-            다음에 할게요
-          </button>
+
+          {onboardingStep === 0 && (
+            <button
+              onClick={() => { if (onBack) onBack(); }}
+              className="w-full mt-2 text-slate-400 text-sm font-medium py-2 active:text-slate-600"
+            >
+              다음에 할게요
+            </button>
+          )}
         </div>
       </div>
     );
@@ -1003,7 +1030,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-bold text-lg">{assignedPM.name}</span>
-                  <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-bold">담당 PM</span>
+                  <span className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-bold">담당 매니저</span>
                 </div>
                 <p className="text-sm text-gray-500 mb-2">
                   ⭐ {assignedPM.rating} · 프로젝트 {assignedPM.completed_projects}건 완료
@@ -1077,7 +1104,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                         <div className="flex items-center gap-2">
                           <span className="text-gray-600">{item.title}</span>
                           {item.status === 'worry' && (
-                            <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">도움필요</span>
+                            <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">도움필요</span>
                           )}
                         </div>
                         <span className="font-medium text-gray-800">
@@ -1139,7 +1166,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                   }`}
                 >
                   {msg.sender_type === 'PM' && (
-                    <p className="text-xs text-brand-600 font-bold mb-1">{assignedPM?.name} PM</p>
+                    <p className="text-xs text-brand-600 font-bold mb-1">{assignedPM?.name} 매니저</p>
                   )}
                   {msg.sender_type === 'SYSTEM' && (
                     <p className="text-xs text-gray-400 font-bold mb-1">시스템</p>
@@ -1164,7 +1191,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                   <div className={`flex items-center gap-2 mt-1 ${
                     msg.sender_type === 'USER' ? 'text-white/70' : 'text-gray-400'
                   }`}>
-                    <span className="text-[10px]">
+                    <span className="text-xs">
                       {new Date(msg.created_at).toLocaleTimeString('ko-KR', {
                         hour: '2-digit',
                         minute: '2-digit'
@@ -1172,7 +1199,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                     </span>
                     {/* 내가 보낸 메시지에 읽음 표시 */}
                     {msg.sender_type === 'USER' && msg.is_read && (
-                      <span className="text-[10px]">✓ 읽음</span>
+                      <span className="text-xs">✓ 읽음</span>
                     )}
                   </div>
                 </div>
@@ -1538,18 +1565,18 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
             {/* 범례 */}
             <div className="flex gap-4 justify-center">
-              <span className="flex items-center gap-1.5 text-[11px] text-slate-400"><span className="w-2.5 h-2.5 rounded-full bg-slate-200" /> 미확인</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-green-600"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> 준비됨</span>
-              <span className="flex items-center gap-1.5 text-[11px] text-orange-500"><span className="w-2.5 h-2.5 rounded-full bg-orange-400" /> 도움필요</span>
+              <span className="flex items-center gap-1.5 text-xs text-slate-400"><span className="w-2.5 h-2.5 rounded-full bg-slate-200" /> 미확인</span>
+              <span className="flex items-center gap-1.5 text-xs text-green-600"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> 준비됨</span>
+              <span className="flex items-center gap-1.5 text-xs text-orange-500"><span className="w-2.5 h-2.5 rounded-full bg-orange-400" /> 도움필요</span>
             </div>
 
-            {['행정/서류', '인테리어/공사', '장비/세팅', 'PM 지원'].map(category => {
+            {['행정/서류', '인테리어/공사', '장비/세팅', '매니저 지원'].map(category => {
               const categoryItems = checklist.filter(item => item.category === category);
               if (categoryItems.length === 0) return null;
 
               return (
                 <div key={category}>
-                  <p className="text-xs font-bold text-slate-400 mb-2 px-1">{category === 'PM 지원' ? 'PM 지원 항목' : category}</p>
+                  <p className="text-xs font-bold text-slate-400 mb-2 px-1">{category === '매니저 지원' ? '매니저 지원 항목' : category}</p>
                   <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100">
                     {categoryItems.map((item, idx) => (
                       <button
@@ -1580,12 +1607,12 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                             item.status === 'worry' ? 'text-orange-600' :
                             'text-slate-800'
                           }`}>{item.title}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">{item.description}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{item.description}</p>
                         </div>
 
                         {/* 상태 라벨 */}
                         {item.status !== 'unchecked' && (
-                          <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full shrink-0 ${
                             item.status === 'done' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-500'
                           }`}>
                             {item.status === 'done' ? '준비됨' : '도움필요'}
@@ -1634,7 +1661,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-600">{item.title}</span>
                         {item.status === 'worry' && (
-                          <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">걱정</span>
+                          <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">걱정</span>
                         )}
                       </div>
                       <span className="font-bold text-sm">
@@ -1736,7 +1763,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
             ) : currentStep === 6 ? (
               <>
                 <Rocket size={20} className="mr-2" />
-                {isGuestMode ? '로그인하고 PM 배정받기' : 'PM 배정 신청하기'}
+                {isGuestMode ? '로그인하고 매니저 배정받기' : '매니저 배정 신청하기'}
               </>
             ) : (
               <>
@@ -1745,6 +1772,11 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
               </>
             )}
           </Button>
+          {currentStep === 6 && isGuestMode && (
+            <p className="text-center text-xs text-slate-400 mt-2">
+              지금까지 입력한 정보는 로그인 후에도 유지됩니다
+            </p>
+          )}
         </div>
       </div>
     </div>

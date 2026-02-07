@@ -15,11 +15,12 @@ const SIGNUP_SOURCES = [
 
 interface LoginViewProps {
   onLoginSuccess: () => void;
+  onGuestBrowse?: () => void;
   onAdminLogin?: (email: string, password: string) => boolean | Promise<boolean>;
   onBack?: () => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLogin, onBack }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onGuestBrowse, onAdminLogin, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -120,8 +121,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLog
   };
 
   const handleGuestLogin = () => {
-    // For demo/guest access
-    onLoginSuccess();
+    if (onGuestBrowse) {
+      onGuestBrowse();
+    } else {
+      onLoginSuccess();
+    }
   };
 
   return (
@@ -228,7 +232,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLog
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-50 border-none rounded-xl py-3.5 pl-12 pr-4 text-slate-900 font-medium focus:ring-2 focus:ring-brand-500 transition-all placeholder:text-slate-400"
-                  placeholder="이메일 또는 관리자 ID"
+                  placeholder="이메일"
                   required
                 />
               </div>
@@ -278,7 +282,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onAdminLog
                   className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-500 to-brand-600 text-white font-bold shadow-lg shadow-brand-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                >
                   <Sparkles size={18} className="text-yellow-300" />
-                  3초 회원가입
+                  간편 회원가입
                </button>
              )}
              <button

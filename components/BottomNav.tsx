@@ -30,7 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange })
               <div className={`mb-1 transition-transform ${isActive ? 'scale-110' : ''}`}>
                 {tab.icon}
               </div>
-              <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>
+              <span className={`text-xs ${isActive ? 'font-bold' : 'font-medium'}`}>
                 {tab.label}
               </span>
             </button>

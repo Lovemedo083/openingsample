@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Search, ArrowRight } from 'lucide-react';
 
 const BUSINESS_EXAMPLES = [
-  { emoji: '🍗', name: '우리동네 치킨집', cost: '1억 2,000', color: 'from-amber-500 to-orange-500' },
-  { emoji: '☕', name: '우리동네 카페', cost: '1억 4,000', color: 'from-amber-700 to-yellow-600' },
-  { emoji: '🍶', name: '우리동네 요리주점', cost: '1억 6,000', color: 'from-rose-500 to-pink-500' },
-  { emoji: '💪', name: '우리동네 필라테스', cost: '9,000', color: 'from-violet-500 to-purple-500' },
+  { emoji: '🍗', name: '우리동네 치킨집', cost: '1억 2,000', color: 'from-amber-500 to-orange-500', saving: 34 },
+  { emoji: '☕', name: '우리동네 카페', cost: '1억 4,000', color: 'from-amber-700 to-yellow-600', saving: 27 },
+  { emoji: '🍶', name: '우리동네 요리주점', cost: '1억 6,000', color: 'from-rose-500 to-pink-500', saving: 26 },
+  { emoji: '💪', name: '우리동네 필라테스', cost: '9,000', color: 'from-violet-500 to-purple-500', saving: 31 },
 ];
 
 interface LandingViewProps {
@@ -26,7 +26,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
         setCurrentIndex(prev => (prev + 1) % BUSINESS_EXAMPLES.length);
         setIsAnimating(false);
       }, 300);
-    }, 1600);
+    }, 3000);
     return () => clearInterval(interval);
   }, []);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -84,6 +84,24 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
           {/* 비주얼: 업종별 비용 슬라이드 */}
           <div className="my-6 flex flex-col items-center gap-3">
             <div className="relative w-48 h-48 rounded-full border-2 border-brand-200 flex items-center justify-center">
+              {/* 절약 퍼센트 배지 - 오른쪽 위 */}
+              {BUSINESS_EXAMPLES.map((item, i) => (
+                <div
+                  key={`badge-${i}`}
+                  className="absolute -top-2 -right-3 z-10"
+                  style={{
+                    opacity: i === currentIndex && !isAnimating ? 1 : 0,
+                    transform: i === currentIndex && !isAnimating
+                      ? 'scale(1)'
+                      : 'scale(0.7)',
+                    transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  <div className="bg-amber-500 text-white font-extrabold text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
+                    {item.saving}% 절약
+                  </div>
+                </div>
+              ))}
               {BUSINESS_EXAMPLES.map((item, i) => (
                 <div
                   key={i}
@@ -115,7 +133,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
                 />
               ))}
             </div>
-            <p className="text-[10px] text-slate-300">*강남구 기준</p>
+            <p className="text-xs text-slate-300">*강남구 기준</p>
           </div>
 
           {/* CTA 버튼 */}
@@ -127,7 +145,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
               창업비용 확인하기
               <ArrowRight size={18} />
             </button>
-            <p className="text-[11px] text-slate-300">
+            <p className="text-xs text-slate-300">
               * 업종/지역/규모에 따라 달라질 수 있습니다
             </p>
           </div>

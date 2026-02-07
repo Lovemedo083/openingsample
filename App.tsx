@@ -75,16 +75,21 @@ function App() {
     }
   };
 
-  // sessionStorage에 저장된 대기 프로젝트 생성
+  // localStorage에 저장된 대기 프로젝트 생성
   const createProjectFromPending = async () => {
-    const pendingStr = sessionStorage.getItem('pending_project_data');
+    const pendingStr = localStorage.getItem('pending_project_data');
     if (!pendingStr) return false;
+
+    // 현재 로그인된 유저 ID 가져오기
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return false;
 
     try {
       const data = JSON.parse(pendingStr);
       const { data: newProject } = await supabase
         .from('startup_projects')
         .insert([{
+          user_id: authUser.id,
           business_category: data.businessCategory,
           location_city: '서울시',
           location_district: '강남구',
@@ -114,7 +119,7 @@ function App() {
           });
         }
       }
-      sessionStorage.removeItem('pending_project_data');
+      localStorage.removeItem('pending_project_data');
       return true;
     } catch (err) {
       console.error('Failed to create pending project:', err);
@@ -127,9 +132,12 @@ function App() {
       const consultings = await fetchConsultings();
       setConsultingBookings(consultings);
 
+      // 현재 유저의 프로젝트만 조회
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       const { data: projects } = await supabase
         .from('startup_projects')
         .select('id, status')
+        .eq('user_id', authUser?.id)
         .in('status', ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS'])
         .order('created_at', { ascending: false })
         .limit(1);
@@ -137,7 +145,7 @@ function App() {
       if (projects && projects.length > 0) {
         setHasActiveProject(true);
       } else {
-        // 기존 프로젝트 없으면 → sessionStorage에서 대기 프로젝트 생성
+        // 기존 프로젝트 없으면 → localStorage에서 대기 프로젝트 생성
         const created = await createProjectFromPending();
         if (created) {
           setHasActiveProject(true);
@@ -224,6 +232,13 @@ function App() {
           setShowLogin(false);
           setShowLanding(false);
         }}
+        onGuestBrowse={() => {
+          // 게스트 둘러보기 → 대시보드 바로 진입
+          setUser({ id: `guest-${Date.now()}`, name: '사장님', phone: '', type: 'PHONE', joinedDate: new Date().toLocaleDateString() });
+          setHasActiveProject(true);
+          setShowLogin(false);
+          setShowLanding(false);
+        }}
         onAdminLogin={handleAdminLogin}
         onBack={() => {
           setShowLogin(false);
@@ -263,6 +278,7 @@ function App() {
             <DashboardView
               onNavigateToProject={() => setCurrentTab('PROJECT')}
               isGuestMode={!isAuthenticated}
+              onLoginRequired={handleLoginRequired}
             />
           ) : (
             <ServiceJourneyView
