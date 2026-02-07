@@ -24,13 +24,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onTabChange })
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex-1 flex flex-col items-center justify-center py-3 min-h-[56px] transition-colors
+              className={`flex-1 flex flex-col items-center justify-center py-2 min-h-[56px] transition-all mx-1
                 ${isActive ? 'text-brand-700' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              <div className={`mb-1 transition-transform ${isActive ? 'scale-110' : ''}`}>
+              <div className={`mb-0.5 p-1 rounded-lg transition-all ${isActive ? 'bg-brand-50 scale-110' : ''}`}>
                 {tab.icon}
               </div>
-              <span className={`text-xs ${isActive ? 'font-bold' : 'font-medium'}`}>
+              <span className={`text-[11px] ${isActive ? 'font-bold text-brand-700' : 'font-medium'}`}>
                 {tab.label}
               </span>
             </button>

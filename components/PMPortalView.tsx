@@ -308,7 +308,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
       await supabase.from('project_messages').insert({
         project_id: selectedProject.id,
         sender_type: 'PM',
-        message: `📋 "${item.title}" 항목에 업체를 배정했습니다.\n\n🏢 업체명: ${partner.name}\n💰 예상 비용: ${partner.price_min}~${partner.price_max}${partner.price_unit}\n📞 연락처: ${partner.contact_phone}\n\n업체에서 곧 연락드릴 예정입니다.`
+        message: `"${item.title}" 항목에 협력업체(${partner.name})를 배정했습니다. 곧 연락드릴 예정입니다.`
       });
       loadMessages(selectedProject.id);
     }
@@ -344,24 +344,31 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
 
     const updatedChecklist = [...(selectedProject.checklist_data || []), newItem];
 
+    // Optimistic update: 즉시 UI 반영
+    setSelectedProject({
+      ...selectedProject,
+      checklist_data: updatedChecklist,
+    });
+    setProjects(prev =>
+      prev.map(p =>
+        p.id === selectedProject.id ? { ...p, checklist_data: updatedChecklist } : p
+      )
+    );
+    setShowCustomItemModal(false);
+    setCustomItemForm({ title: '', category: 'PLANNING', description: '' });
+
+    // 서버 동기화
     const { error } = await supabase
       .from('consultings')
       .update({ checklist_data: updatedChecklist })
       .eq('id', selectedProject.id);
 
-    if (!error) {
-      // 로컬 상태 업데이트
+    if (error) {
+      // 실패 시 롤백
       setSelectedProject({
         ...selectedProject,
-        checklist_data: updatedChecklist,
+        checklist_data: selectedProject.checklist_data,
       });
-      setProjects(prev =>
-        prev.map(p =>
-          p.id === selectedProject.id ? { ...p, checklist_data: updatedChecklist } : p
-        )
-      );
-      setShowCustomItemModal(false);
-      setCustomItemForm({ title: '', category: 'PLANNING', description: '' });
     }
   };
 

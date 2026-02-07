@@ -141,7 +141,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, 
 
       {/* 알림 패널 */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-[340px] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
+        <div className="absolute right-0 top-full mt-2 w-[min(340px,calc(100vw-32px))] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
           {/* 헤더 */}
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
             <div className="flex items-center gap-2">

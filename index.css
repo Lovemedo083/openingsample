@@ -10,6 +10,7 @@
 
 body {
   font-family: 'Noto Sans KR', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   background-color: #F8FAFC; /* slate-50 */
   color: #0F172A; /* slate-900 */
 }

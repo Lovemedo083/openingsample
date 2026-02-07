@@ -52,7 +52,7 @@ interface Customer {
 interface Payment {
   id: string;
   customer_id: string;
-  customer_name: string;
+  customer_name?: string;
   amount: number;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
   payment_method: string;
@@ -594,7 +594,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                     const pendingCount = allProjects.filter(p => p.status === 'PENDING_PM').length;
                     return pendingCount > 0 ? (
                       <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${newProjectAlert ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-100 text-amber-700'}`}>
-                        {pendingCount}
+                        신규 {pendingCount}
                       </span>
                     ) : null;
                   })()}
@@ -1356,7 +1356,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                               >
-                                PM으로 답장
+                                PM 대리 답장
                               </button>
                               <button
                                 onClick={() => setAdminMessageType('SYSTEM')}

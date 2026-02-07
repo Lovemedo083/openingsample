@@ -88,7 +88,7 @@ const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY || '';
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProject, isGuestMode, onLoginRequired }) => {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('사장');
+  const [userName, setUserName] = useState('사장님');
   const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -96,6 +96,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   const [stepToast, setStepToast] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [showPushBanner, setShowPushBanner] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [tossPayLoading, setTossPayLoading] = useState<string | null>(null); // payment_id being processed
   const [tossRedirectParams, setTossRedirectParams] = useState<{paymentKey: string; orderId: string; amount: string; paymentId: string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -113,7 +117,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
     if (isGuestMode) { setUserName('게스트'); setCurrentUserId('guest-0'); return; }
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || '사장');
+      setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || '사장님');
       setCurrentUserId(user.id);
 
       // 푸시 알림 배너 표시 여부
@@ -389,16 +393,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !project?.id) return;
+    if (!newMessage.trim() && !selectedImage) return;
+    if (!project?.id) return;
+
+    const messageText = newMessage.trim();
 
     // 게스트 모드: 로컬 시뮬레이션
     if (isGuestMode) {
       const guestMsg: Message = {
         id: `guest-${Date.now()}`, sender_type: 'USER',
-        message: newMessage.trim(), created_at: new Date().toISOString()
+        message: messageText || '📷 이미지',
+        attachments: imagePreview ? [{ url: imagePreview, type: 'image', name: 'preview' }] : undefined,
+        created_at: new Date().toISOString()
       };
       setMessages(prev => [...prev, guestMsg]);
       setNewMessage('');
+      setSelectedImage(null);
+      setImagePreview(null);
       setTimeout(() => {
         setMessages(prev => [...prev, {
           id: `pm-${Date.now()}`, sender_type: 'PM',
@@ -410,21 +421,64 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
     }
 
     setSending(true);
+    setImageError(null);
 
-    const { data, error } = await supabase.from('project_messages').insert({
-      project_id: project.id,
-      sender_type: 'USER',
-      message: newMessage.trim()
-    }).select().single();
+    try {
+      let attachments: { url: string; type: string; name: string }[] | undefined;
 
-    if (!error && data) {
-      setMessages(prev => {
-        const exists = prev.some(m => m.id === data.id);
-        return exists ? prev : [...prev, data];
-      });
+      if (selectedImage) {
+        const fileExt = selectedImage.name.split('.').pop();
+        const fileName = `${project.id}/${Date.now()}.${fileExt}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('chat-images')
+          .upload(fileName, selectedImage);
+
+        if (uploadError) {
+          setImageError('이미지 업로드에 실패했습니다');
+          setSending(false);
+          return;
+        }
+        if (uploadData) {
+          const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(fileName);
+          attachments = [{ url: urlData.publicUrl, type: selectedImage.type, name: selectedImage.name }];
+        }
+      }
+
+      const { data, error } = await supabase.from('project_messages').insert({
+        project_id: project.id,
+        sender_type: 'USER',
+        message: messageText || '📷 이미지',
+        attachments: attachments || null
+      }).select().single();
+
+      if (!error && data) {
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === data.id);
+          return exists ? prev : [...prev, data];
+        });
+      }
+    } catch (err) {
+      console.error('메시지 전송 실패:', err);
     }
+
     setNewMessage('');
+    setSelectedImage(null);
+    setImagePreview(null);
     setSending(false);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setImageError('10MB 이하의 이미지만 업로드 가능합니다');
+      return;
+    }
+    setImageError(null);
+    setSelectedImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
   const formatPrice = (price: number) => {
@@ -558,6 +612,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
                       {msg.sender_type === 'PM' ? project.pm?.name || '매니저' : '시스템'}
                     </p>
                   )}
+                  {msg.attachments && Array.isArray(msg.attachments) && msg.attachments.filter((a: any) => a.type?.startsWith('image')).map((a: any, idx: number) => (
+                    <img key={idx} src={a.url} alt="첨부" className="max-w-full max-h-48 rounded-lg mb-1" />
+                  ))}
                   <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
                   <p className={`text-xs mt-1 ${msg.sender_type === 'USER' ? 'text-white/50' : 'text-slate-300'}`}>
                     {new Date(msg.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
@@ -571,22 +628,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
 
         {/* 메시지 입력 */}
         <div className="fixed bottom-[72px] left-0 right-0 bg-white border-t z-40">
-          <div className="max-w-lg mx-auto px-4 py-3 flex gap-2">
-            <input
-              type="text"
-              placeholder="메시지를 입력하세요..."
-              className="flex-1 px-4 py-2.5 bg-slate-100 rounded-full text-sm outline-none focus:ring-2 focus:ring-brand-500"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={sending || !newMessage.trim()}
-              className="w-12 h-12 bg-brand-600 rounded-full flex items-center justify-center text-white disabled:opacity-40"
-            >
-              <Send size={16} />
-            </button>
+          <div className="max-w-lg mx-auto">
+            {/* 이미지 프리뷰 */}
+            {imagePreview && (
+              <div className="px-4 pt-2 flex items-center gap-2">
+                <img src={imagePreview} alt="미리보기" className="max-h-20 rounded-lg border" />
+                <button onClick={() => { setSelectedImage(null); setImagePreview(null); }} className="p-1 text-slate-400 hover:text-red-500">
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {imageError && (
+              <div className="px-4 pt-2">
+                <p className="text-xs text-red-500">{imageError}</p>
+              </div>
+            )}
+            <div className="px-4 py-3 flex gap-2">
+              <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageSelect} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 shrink-0"
+              >
+                <ImagePlus size={18} />
+              </button>
+              <input
+                type="text"
+                placeholder="메시지를 입력하세요..."
+                className="flex-1 px-4 py-2.5 bg-slate-100 rounded-full text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={sending || (!newMessage.trim() && !selectedImage)}
+                className="w-12 h-12 bg-brand-600 rounded-full flex items-center justify-center text-white disabled:opacity-40 shrink-0"
+              >
+                <Send size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -819,6 +899,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
         </div>
       )}
 
+      {/* 게스트 모드 안내 */}
+      {isGuestMode && (
+        <div className="mx-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0 text-lg">👋</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900">체험 모드입니다</p>
+            <p className="text-xs text-slate-500">로그인하면 데이터가 저장되고 다른 기기에서도 확인할 수 있어요</p>
+          </div>
+          <button
+            onClick={() => { if (onLoginRequired) onLoginRequired(); }}
+            className="bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg shrink-0"
+          >
+            로그인
+          </button>
+        </div>
+      )}
+
       {/* 푸시 알림 구독 배너 */}
       {showPushBanner && !isGuestMode && (
         <div className="mx-4 bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
@@ -902,7 +999,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
             <CreditCard size={18} className="text-orange-500" />
             <p className="text-sm font-bold text-orange-800">결제 대기중</p>
           </div>
-          <p className="text-xs text-orange-600 mb-2">담당 매니저가 최종 금액을 확정한 후, 채팅으로 결제 요청을 보내드립니다. 채팅에서 결제하기 버튼을 눌러 토스페이로 안전하게 결제하세요.</p>
+          <p className="text-xs text-orange-600 mb-2">
+            {messages.some(m => m.attachments && JSON.stringify(m.attachments).includes('payment_request'))
+              ? '결제 요청이 도착했습니다. 채팅에서 결제하기 버튼을 눌러 토스페이로 안전하게 결제하세요.'
+              : '담당 매니저가 최종 금액을 확정한 후, 채팅으로 결제 요청을 보내드립니다.'}
+          </p>
           <div className="bg-orange-100/70 rounded-xl px-3 py-2 mb-3">
             <p className="text-xs text-orange-700 font-medium">사장님이 할 일: 채팅에서 결제 요청을 확인하고 결제해주세요</p>
           </div>

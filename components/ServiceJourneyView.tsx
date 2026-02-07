@@ -1279,7 +1279,11 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
           )}
           <div className="flex-1 mx-4">
             <div className="flex gap-1">
-              {JOURNEY_STEPS.map(s => (
+              {JOURNEY_STEPS.filter(s => {
+                // 부동산 계약 시 Step 3(상권 분석) 숨김
+                if (hasRealEstateContract && s.step === 3) return false;
+                return true;
+              }).map(s => (
                 <div
                   key={s.step}
                   className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -1544,9 +1548,14 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
               <input
                 type="number"
                 placeholder="예: 15"
+                min={1}
+                max={500}
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg font-bold focus:border-brand-500 focus:ring-0"
                 value={storeSize}
-                onChange={(e) => setStoreSize(Number(e.target.value) || 15)}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setStoreSize(v > 0 && v <= 500 ? v : 15);
+                }}
               />
             </div>
           </div>
@@ -1557,7 +1566,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
           <div className="space-y-5">
             {/* 안내 + 스킵 */}
             <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-400">탭하여 상태를 변경하세요</p>
+              <p className="text-xs text-slate-400">탭: 미확인 → 준비됨 → 도움필요</p>
               <button onClick={goToNextStep} className="text-xs text-brand-500 font-bold px-3 py-1.5 rounded-lg hover:bg-brand-50 transition-colors">
                 건너뛰기 →
               </button>
@@ -1660,6 +1669,9 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                     <div key={item.id} className="p-3 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-600">{item.title}</span>
+                        {isPerPyung && (
+                          <span className="text-[10px] text-gray-400">({item.estimatedCost.min}~{item.estimatedCost.max}{item.estimatedCost.unit} × {storeSize}평)</span>
+                        )}
                         {item.status === 'worry' && (
                           <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">걱정</span>
                         )}
