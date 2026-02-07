@@ -500,7 +500,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-8 text-center">
         <div>
           <Rocket size={48} className="mx-auto mb-4 text-slate-300" />
-          <p className="text-slate-500">프로젝트를 찾을 수 없습니다</p>
+          <p className="text-slate-500 mb-4">프로젝트를 불러오는 중 문제가 발생했습니다</p>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => { setLoading(true); loadProject(); }}
+              className="px-6 py-2.5 bg-brand-600 text-white rounded-xl text-sm font-bold"
+            >
+              다시 시도
+            </button>
+            <button
+              onClick={onNavigateToProject}
+              className="px-6 py-2.5 border border-slate-200 rounded-xl text-sm font-medium text-slate-600"
+            >
+              새 프로젝트 시작
+            </button>
+          </div>
         </div>
       </div>
     );

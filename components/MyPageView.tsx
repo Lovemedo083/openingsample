@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from '../types';
 import { supabase } from '../utils/supabaseClient';
 import {
   User as UserIcon, LogOut, Bell, ChevronRight,
-  FileText, CreditCard, FileCheck, MessageCircle
+  FileText, CreditCard, FileCheck, MessageCircle, X, Info
 } from 'lucide-react';
 
 interface MyPageViewProps {
@@ -14,6 +14,12 @@ interface MyPageViewProps {
 }
 
 export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout, consultingCount = 0, quoteCount = 0 }) => {
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showComingSoon = (label: string) => {
+    setToast(`${label} 기능은 준비중입니다`);
+    setTimeout(() => setToast(null), 2000);
+  };
 
   const handleKakaoLogin = async () => {
     const redirectUrl = window.location.hostname === 'localhost'
@@ -78,8 +84,8 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout, consulti
           <section>
             <h3 className="text-xs font-bold text-slate-400 mb-2 px-1">내 계정</h3>
             <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
-              <MenuItem icon={UserIcon} label="내 정보 관리" sub="이름·연락처 수정" />
-              <MenuItem icon={Bell} label="알림 설정" />
+              <MenuItem icon={UserIcon} label="내 정보 관리" sub="이름·연락처 수정" onClick={() => showComingSoon('내 정보 관리')} />
+              <MenuItem icon={Bell} label="알림 설정" onClick={() => showComingSoon('알림 설정')} />
             </div>
           </section>
         )}
@@ -88,9 +94,9 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout, consulti
           <section>
             <h3 className="text-xs font-bold text-slate-400 mb-2 px-1">내 문서</h3>
             <div className="bg-white rounded-xl border border-slate-100 divide-y divide-slate-100">
-              <MenuItem icon={FileText} label="저장된 견적서" />
-              <MenuItem icon={FileCheck} label="계약/확정 내역" />
-              <MenuItem icon={CreditCard} label="결제 영수증" />
+              <MenuItem icon={FileText} label="저장된 견적서" onClick={() => showComingSoon('저장된 견적서')} />
+              <MenuItem icon={FileCheck} label="계약/확정 내역" onClick={() => showComingSoon('계약/확정 내역')} />
+              <MenuItem icon={CreditCard} label="결제 영수증" onClick={() => showComingSoon('결제 영수증')} />
             </div>
           </section>
         )}
@@ -112,6 +118,14 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout, consulti
           고객센터: 1544-0000 (평일 10:00 - 18:00)
         </p>
       </div>
+
+      {/* 준비중 토스트 */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white text-sm px-5 py-3 rounded-2xl shadow-lg flex items-center gap-2 animate-fade-in">
+          <Info size={16} className="text-slate-300 shrink-0" />
+          {toast}
+        </div>
+      )}
     </div>
   );
 };

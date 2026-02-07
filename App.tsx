@@ -103,21 +103,24 @@ function App() {
         .select()
         .single();
 
-      if (newProject) {
-        if (data.systemMessage) {
-          await supabase.from('project_messages').insert({
-            project_id: newProject.id,
-            sender_type: 'SYSTEM',
-            message: data.systemMessage
-          });
-        }
-        if (data.pmMessage) {
-          await supabase.from('project_messages').insert({
-            project_id: newProject.id,
-            sender_type: 'USER',
-            message: data.pmMessage
-          });
-        }
+      if (!newProject) {
+        // insert 실패 — localStorage 유지해서 재시도 가능하게
+        return false;
+      }
+
+      if (data.systemMessage) {
+        await supabase.from('project_messages').insert({
+          project_id: newProject.id,
+          sender_type: 'SYSTEM',
+          message: data.systemMessage
+        });
+      }
+      if (data.pmMessage) {
+        await supabase.from('project_messages').insert({
+          project_id: newProject.id,
+          sender_type: 'USER',
+          message: data.pmMessage
+        });
       }
       localStorage.removeItem('pending_project_data');
       return true;
