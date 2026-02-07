@@ -241,10 +241,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
     setSendingMessage(true);
     const { error } = await supabase.from('project_messages').insert({
       project_id: selectedProjectId,
-      sender_type: adminMessageType,
-      message: adminMessageType === 'SYSTEM'
-        ? `[관리자] ${adminMessage.trim()}`
-        : adminMessage.trim()
+      sender_type: adminMessageType === 'SYSTEM' ? 'SYSTEM' : 'PM',
+      message: `[관리자] ${adminMessage.trim()}`
     });
 
     if (!error) {

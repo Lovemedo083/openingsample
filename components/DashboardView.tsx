@@ -470,8 +470,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setImageError('10MB 이하의 이미지만 업로드 가능합니다');
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError('5MB 이하의 이미지만 업로드 가능합니다');
       return;
     }
     setImageError(null);
@@ -782,7 +782,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-slate-900">카카오톡 상담</p>
-                <a href="https://open.kakao.com/o/xxxxxx" target="_blank" rel="noopener" className="text-xs text-brand-600">채팅하기</a>
+                <span className="text-xs text-slate-400">준비중</span>
               </div>
             </div>
             <button className="w-full py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 font-medium">

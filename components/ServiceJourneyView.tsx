@@ -579,10 +579,22 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     if (!project?.id) return;
 
     try {
-      await supabase
-        .from('startup_projects')
-        .update({ status: 'CANCELLED' })
-        .eq('id', project.id);
+      await Promise.all([
+        supabase
+          .from('startup_projects')
+          .update({ status: 'CANCELLED' })
+          .eq('id', project.id),
+        supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('project_id', project.id),
+      ]);
+
+      await supabase.from('project_messages').insert({
+        project_id: project.id,
+        sender_type: 'SYSTEM',
+        message: '프로젝트가 취소되었습니다.'
+      });
 
       setProject(null);
       setAssignedPM(null);

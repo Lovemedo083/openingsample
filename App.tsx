@@ -158,12 +158,16 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem('pending_project_data');
+    localStorage.removeItem('push_banner_dismissed');
+    sessionStorage.clear();
     setUser(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
     setIsPM(false);
     setPmId(null);
     setHasActiveProject(false);
+    setConsultingBookings([]);
     setCurrentTab('HOME');
     setShowLanding(true);
   };
