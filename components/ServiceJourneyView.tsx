@@ -341,17 +341,17 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
     // 현재 유저의 프로젝트만 조회
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    let query = supabase
+    if (!authUser) { setLoading(false); return; }
+    const { data: projects } = await supabase
       .from('startup_projects')
       .select(`
         *,
         pm:project_managers(*)
       `)
+      .eq('user_id', authUser.id)
       .in('status', ['DRAFT', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE', 'POST_SERVICE'])
       .order('created_at', { ascending: false })
       .limit(1);
-    if (authUser) query = query.eq('user_id', authUser.id);
-    const { data: projects } = await query;
 
     if (projects && projects.length > 0) {
       const proj = projects[0];
