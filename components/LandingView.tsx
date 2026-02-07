@@ -80,7 +80,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
           <div className="my-6 flex flex-col items-center gap-3">
             <div className="relative">
               {/* 절약 퍼센트 배지 — 원 바깥에 위치 */}
-              <div className="absolute top-0 -right-4 z-20">
+              <div className="absolute top-3 -right-4 z-20">
                 <div
                   key={`badge-${currentIndex}`}
                   className="bg-amber-500 text-white font-extrabold text-sm px-3.5 py-1.5 rounded-full shadow-lg whitespace-nowrap"
