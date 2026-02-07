@@ -719,10 +719,17 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
     // 인증된 사용자: PENDING_PM 상태로 프로젝트 생성 (PM 미배정)
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    const { data: newProject } = await supabase
+    if (!authUser) {
+      alert('로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.');
+      setLoading(false);
+      if (onLoginRequired) onLoginRequired();
+      return;
+    }
+
+    const { data: newProject, error: insertError } = await supabase
       .from('startup_projects')
       .insert([{
-        user_id: authUser?.id,
+        user_id: authUser.id,
         business_category: businessCategory,
         location_city: '서울시',
         location_district: '강남구',
@@ -736,23 +743,28 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       .select()
       .single();
 
-    if (newProject) {
+    if (insertError || !newProject) {
+      console.error('Project creation failed:', insertError);
+      alert('프로젝트 생성에 실패했습니다. 다시 시도해주세요.');
+      setLoading(false);
+      return;
+    }
+
+    await supabase.from('project_messages').insert({
+      project_id: newProject.id,
+      sender_type: 'SYSTEM',
+      message: systemMsg
+    });
+
+    if (pmMessage.trim()) {
       await supabase.from('project_messages').insert({
         project_id: newProject.id,
-        sender_type: 'SYSTEM',
-        message: systemMsg
+        sender_type: 'USER',
+        message: pmMessage.trim()
       });
-
-      if (pmMessage.trim()) {
-        await supabase.from('project_messages').insert({
-          project_id: newProject.id,
-          sender_type: 'USER',
-          message: pmMessage.trim()
-        });
-      }
-
-      if (onProjectCreated) onProjectCreated();
     }
+
+    if (onProjectCreated) onProjectCreated();
     setLoading(false);
   };
 

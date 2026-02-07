@@ -34,12 +34,15 @@ function App() {
   const [hasActiveProject, setHasActiveProject] = useState(false);
   const [consultingBookings, setConsultingBookings] = useState<any[]>([]);
 
+  // 로그인 후 데이터 로딩 중 여부 (이 동안 로딩 화면 표시)
+  const [isDataLoading, setIsDataLoading] = useState(false);
+
   // Auth 체크
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        handleSession(session);
+        await handleSession(session);
         // 이미 로그인된 사용자는 랜딩 스킵
         setShowLanding(false);
       }
@@ -47,9 +50,9 @@ function App() {
     };
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        handleSession(session);
+        await handleSession(session);
         setShowLanding(false);
       }
     });
@@ -57,7 +60,7 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleSession = (session: any) => {
+  const handleSession = async (session: any) => {
     if (session?.user) {
       const email = session.user.email || '';
       if (email === 'admin@opening.run') {
@@ -71,7 +74,12 @@ function App() {
         joinedDate: new Date(session.user.created_at).toLocaleDateString()
       });
       setIsAuthenticated(true);
-      loadUserData();
+      setIsDataLoading(true);
+      try {
+        await loadUserData();
+      } finally {
+        setIsDataLoading(false);
+      }
     }
   };
 
@@ -86,7 +94,7 @@ function App() {
 
     try {
       const data = JSON.parse(pendingStr);
-      const { data: newProject } = await supabase
+      const { data: newProject, error: insertError } = await supabase
         .from('startup_projects')
         .insert([{
           user_id: authUser.id,
@@ -103,8 +111,9 @@ function App() {
         .select()
         .single();
 
-      if (!newProject) {
+      if (insertError || !newProject) {
         // insert 실패 — localStorage 유지해서 재시도 가능하게
+        console.error('Pending project creation failed:', insertError);
         return false;
       }
 
@@ -217,8 +226,8 @@ function App() {
 
   // === 렌더링 ===
 
-  // 1. 로딩
-  if (isAuthChecking) {
+  // 1. 로딩 (인증 체크 또는 로그인 후 데이터 로딩)
+  if (isAuthChecking || isDataLoading) {
     return (
       <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center text-brand-600">
         <div className="flex flex-col items-center gap-4 animate-scale-in">
@@ -226,6 +235,7 @@ function App() {
             <DoorOpen size={36} strokeWidth={2.5} />
           </div>
           <Loader2 className="animate-spin text-brand-400" size={28} />
+          {isDataLoading && <p className="text-sm text-slate-400 mt-2">프로젝트 준비중...</p>}
         </div>
       </div>
     );
