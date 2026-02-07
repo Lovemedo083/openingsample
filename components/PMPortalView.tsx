@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Button } from './Components';
+import { createNotification } from './NotificationCenter';
 import {
   User, Phone, Mail, Camera, Save, LogOut, Briefcase, MessageCircle,
   ChevronRight, Check, Clock, Loader2, Send, ArrowRight, X,
@@ -444,6 +445,17 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
       attachments: attachments || null
     });
 
+    // 앱 내 알림 생성
+    if (selectedProject.user_id) {
+      await createNotification({
+        userId: selectedProject.user_id,
+        projectId: selectedProject.id,
+        type: 'NEW_MESSAGE',
+        title: '새 메시지',
+        message: newMessage.trim() ? (newMessage.trim().length > 50 ? newMessage.trim().slice(0, 50) + '...' : newMessage.trim()) : '📷 이미지를 보냈습니다',
+      });
+    }
+
     setNewMessage('');
     setSelectedImage(null);
     setImagePreview(null);
@@ -669,6 +681,17 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
         amount: amount,
       }]
     });
+
+    // 앱 내 알림 생성
+    if (selectedProject.user_id) {
+      await createNotification({
+        userId: selectedProject.user_id,
+        projectId: selectedProject.id,
+        type: 'PAYMENT_REQUEST',
+        title: '결제 요청',
+        message: `${formattedAmount}원 결제 요청이 도착했습니다. (${paymentDesc})`,
+      });
+    }
 
     loadMessages(selectedProject.id);
     setShowPaymentRequestModal(false);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Button } from './Components';
+import { createNotification } from './NotificationCenter';
 import {
   Plus, Edit2, Trash2, Save, X, Building2, Phone, Mail,
   DollarSign, Tag, Search, Filter, ChevronDown, ChevronUp,
@@ -12,9 +13,9 @@ import {
   Briefcase, Send, ArrowLeft
 } from 'lucide-react';
 
-// Toss 결제 키 (테스트)
-const TOSS_CLIENT_KEY = 'test_gck_6BYq7GWPVvne41oxqwbLVNE5vbo1';
-const TOSS_SECRET_KEY = 'test_gsk_EP59LybZ8BBp7Rm1vlvG86GYo7pR';
+// Toss 결제 키 (환경변수)
+const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY || '';
+const TOSS_SECRET_KEY = import.meta.env.VITE_TOSS_SECRET_KEY || '';
 
 interface Partner {
   id: string;
@@ -299,6 +300,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
         message: `안녕하세요, 담당 매니저 ${pm?.name}입니다.\n\n${pmGreeting}\n\n곧 전화드리겠습니다.`
       });
 
+      // 앱 내 알림 생성
+      const targetProject = allProjects.find(p => p.id === projectId);
+      if (targetProject?.user_id) {
+        await createNotification({
+          userId: targetProject.user_id,
+          projectId,
+          type: 'PM_ASSIGNED',
+          title: '담당 매니저 배정 완료',
+          message: `${pm?.name || '매니저'}님이 담당 매니저로 배정되었습니다. 곧 연락드릴 예정입니다.`,
+        });
+      }
+
       loadProjectMessages(projectId);
       setAssignPmId('');
     } else {
@@ -363,6 +376,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
         sender_type: 'SYSTEM',
         message: `프로젝트 단계가 "${STEP_LABELS[newStep]}"(으)로 변경되었습니다.`
       });
+
+      // 앱 내 알림 생성
+      if (currentProject.user_id) {
+        await createNotification({
+          userId: currentProject.user_id,
+          projectId,
+          type: 'STEP_CHANGED',
+          title: `단계 변경: ${STEP_LABELS[newStep]}`,
+          message: `프로젝트가 "${STEP_LABELS[newStep]}" 단계로 변경되었습니다.`,
+        });
+      }
+
       loadProjectMessages(projectId);
     } else {
       alert('단계 변경 실패: ' + error.message);

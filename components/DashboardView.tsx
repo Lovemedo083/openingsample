@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { NotificationCenter, createNotification } from './NotificationCenter';
+import { isPushSupported, subscribeToPush, getPushPermission } from '../utils/pushNotifications';
 import {
-  Bell, ChevronRight, ChevronDown, ChevronUp,
+  Bell, BellRing, ChevronRight, ChevronDown, ChevronUp,
   Clock, User as UserIcon, Phone, Send,
   Loader2, MessageCircle, Rocket, CheckCircle,
   Coffee, Utensils, Beer, ShoppingBag, Scissors, Dumbbell,
@@ -92,6 +94,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [stepToast, setStepToast] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [showPushBanner, setShowPushBanner] = useState(false);
   const [tossPayLoading, setTossPayLoading] = useState<string | null>(null); // payment_id being processed
   const [tossRedirectParams, setTossRedirectParams] = useState<{paymentKey: string; orderId: string; amount: string; paymentId: string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,10 +110,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   }, [messages]);
 
   const loadUser = async () => {
-    if (isGuestMode) { setUserName('게스트'); return; }
+    if (isGuestMode) { setUserName('게스트'); setCurrentUserId('guest-0'); return; }
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || '사장');
+      setCurrentUserId(user.id);
+
+      // 푸시 알림 배너 표시 여부
+      if (isPushSupported() && !localStorage.getItem('push_banner_dismissed')) {
+        const perm = await getPushPermission();
+        if (perm === 'default') setShowPushBanner(true);
+      }
     }
   };
 
@@ -259,6 +270,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
           .eq('id', project.id);
       }
 
+      // 결제 완료 알림
+      if (currentUserId) {
+        await createNotification({
+          userId: currentUserId,
+          projectId: project.id,
+          type: 'PAYMENT_COMPLETED',
+          title: '결제 완료',
+          message: `${amount.toLocaleString('ko-KR')}원 결제가 완료되었습니다.`,
+        });
+      }
+
       setStepToast('결제가 완료되었습니다!');
       setTimeout(() => setStepToast(null), 4000);
       loadProject();
@@ -348,9 +370,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
         event: 'UPDATE', schema: 'public', table: 'startup_projects',
         filter: `id=eq.${projectId}`
       }, (payload: any) => {
+        const newStatus = payload.new?.status;
+        const prevStatus = payload.old?.status;
         const newStep = payload.new?.current_step;
         const prevStep = project?.current_step;
-        if (newStep && newStep !== prevStep && STEP_LABELS[newStep]) {
+
+        // PENDING_PM → PM_ASSIGNED 전환 시 특별 알림
+        if (prevStatus === 'PENDING_PM' && newStatus === 'PM_ASSIGNED') {
+          setStepToast('담당 매니저가 배정되었습니다! 🎉');
+          setTimeout(() => setStepToast(null), 5000);
+        } else if (newStep && newStep !== prevStep && STEP_LABELS[newStep]) {
           setStepToast(`단계가 "${STEP_LABELS[newStep]}"(으)로 변경되었습니다`);
           setTimeout(() => setStepToast(null), 4000);
         }
@@ -575,9 +604,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
               <img src="/favicon-new.png" alt="오프닝" className="w-8 h-8 rounded-xl shadow-sm" />
               <span className="font-black text-lg text-slate-900">오프닝</span>
             </div>
-            <button className="relative p-2 text-slate-400">
-              <Bell size={20} />
-            </button>
+            <NotificationCenter userId={currentUserId} />
           </div>
         </header>
 
@@ -706,10 +733,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
               <img src="/favicon-new.png" alt="오프닝" className="w-8 h-8 rounded-xl bg-white/20 p-0.5" />
               <span className="font-black text-lg">오프닝</span>
             </div>
-            <button className="relative p-2 bg-white/15 rounded-full">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-400 rounded-full" />
-            </button>
+            <NotificationCenter userId={currentUserId} onOpenChat={() => setShowChat(true)} dark />
           </div>
 
           {/* 인사 + 단계 정보 */}
@@ -792,6 +816,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
               </span>
             )}
           </button>
+        </div>
+      )}
+
+      {/* 푸시 알림 구독 배너 */}
+      {showPushBanner && !isGuestMode && (
+        <div className="mx-4 bg-gradient-to-r from-brand-50 to-blue-50 border border-brand-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-brand-100 rounded-full flex items-center justify-center shrink-0">
+            <BellRing size={20} className="text-brand-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900">알림을 받아보세요</p>
+            <p className="text-xs text-slate-500">매니저 메시지, 단계 변경 등을 놓치지 마세요</p>
+          </div>
+          <div className="flex gap-1.5 shrink-0">
+            <button
+              onClick={() => {
+                localStorage.setItem('push_banner_dismissed', '1');
+                setShowPushBanner(false);
+              }}
+              className="text-xs text-slate-400 px-2 py-1.5"
+            >
+              닫기
+            </button>
+            <button
+              onClick={async () => {
+                const result = await subscribeToPush(currentUserId);
+                if (result) {
+                  setShowPushBanner(false);
+                  localStorage.setItem('push_banner_dismissed', '1');
+                  setStepToast('푸시 알림이 설정되었습니다!');
+                  setTimeout(() => setStepToast(null), 3000);
+                }
+              }}
+              className="bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
+            >
+              허용
+            </button>
+          </div>
         </div>
       )}
 

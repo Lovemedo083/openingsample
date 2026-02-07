@@ -840,7 +840,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
             <img
               src={slide.image}
               alt={slide.title}
-              className="w-56 h-56 object-contain mx-auto"
+              className="max-w-[280px] max-h-[280px] w-auto h-auto mx-auto"
             />
           </div>
         </div>
