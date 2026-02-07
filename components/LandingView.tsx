@@ -21,7 +21,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex(prev => (prev + 1) % BUSINESS_EXAMPLES.length);
-    }, 5000);
+    }, 1300);
     return () => clearInterval(interval);
   }, []);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
