@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Search, ArrowRight } from 'lucide-react';
 
 const BUSINESS_EXAMPLES = [
-  { emoji: '🍗', name: '우리동네 치킨집', cost: '1억 2,000', color: 'from-amber-500 to-orange-500', saving: 34 },
-  { emoji: '☕', name: '우리동네 카페', cost: '1억 4,000', color: 'from-amber-700 to-yellow-600', saving: 27 },
-  { emoji: '🍶', name: '우리동네 요리주점', cost: '1억 6,000', color: 'from-rose-500 to-pink-500', saving: 26 },
-  { emoji: '💪', name: '우리동네 필라테스', cost: '9,000', color: 'from-violet-500 to-purple-500', saving: 31 },
+  { emoji: '🍗', name: '교대역 치킨집', cost: '1억 2,000', color: 'from-amber-500 to-orange-500', saving: 34 },
+  { emoji: '☕', name: '역삼동 카페', cost: '1억 4,000', color: 'from-amber-700 to-yellow-600', saving: 27 },
+  { emoji: '🍶', name: '서초 요리주점', cost: '1억 6,000', color: 'from-rose-500 to-pink-500', saving: 26 },
+  { emoji: '💪', name: '청담동 필라테스', cost: '9,000', color: 'from-violet-500 to-purple-500', saving: 31 },
 ];
 
 interface LandingViewProps {
@@ -78,9 +78,9 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
 
           {/* 비주얼: 업종별 비용 슬라이드 */}
           <div className="my-6 flex flex-col items-center gap-3">
-            <div className="relative w-48 h-48 rounded-full border-2 border-brand-200 flex items-center justify-center overflow-hidden">
-              {/* 절약 퍼센트 배지 */}
-              <div className="absolute -top-1 -right-1 z-20">
+            <div className="relative">
+              {/* 절약 퍼센트 배지 — 원 바깥에 위치 */}
+              <div className="absolute -top-3 -right-3 z-20">
                 <div
                   key={`badge-${currentIndex}`}
                   className="bg-amber-500 text-white font-extrabold text-xs px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap"
@@ -89,17 +89,19 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
                   평균 {BUSINESS_EXAMPLES[currentIndex].saving}% 절약
                 </div>
               </div>
-              {/* 활성 카드 1개만 렌더링 */}
-              <div
-                key={`card-${currentIndex}`}
-                className="flex flex-col items-center justify-center"
-                style={{ animation: 'fadeIn 0.3s ease-out' }}
-              >
-                <span className="text-4xl mb-1">{BUSINESS_EXAMPLES[currentIndex].emoji}</span>
-                <p className="text-xs font-medium text-slate-400">{BUSINESS_EXAMPLES[currentIndex].name}</p>
-                <p className="text-brand-700 font-black text-2xl tracking-tight mt-0.5">
-                  {BUSINESS_EXAMPLES[currentIndex].cost}<span className="text-base font-bold text-brand-400">만원</span>
-                </p>
+              <div className="w-48 h-48 rounded-full border-2 border-brand-200 flex items-center justify-center overflow-hidden">
+                {/* 활성 카드 1개만 렌더링 */}
+                <div
+                  key={`card-${currentIndex}`}
+                  className="flex flex-col items-center justify-center"
+                  style={{ animation: 'fadeIn 0.3s ease-out' }}
+                >
+                  <span className="text-4xl mb-1">{BUSINESS_EXAMPLES[currentIndex].emoji}</span>
+                  <p className="text-xs font-medium text-slate-400">{BUSINESS_EXAMPLES[currentIndex].name}</p>
+                  <p className="text-brand-700 font-black text-2xl tracking-tight mt-0.5">
+                    {BUSINESS_EXAMPLES[currentIndex].cost}<span className="text-base font-bold text-brand-400">만원</span>
+                  </p>
+                </div>
               </div>
             </div>
             {/* 인디케이터 */}
