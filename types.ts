@@ -40,7 +40,7 @@ export interface Product {
   grade: ItemGrade;
   utility: UtilityReq;
   image: string; // URL
-  clearance: { // Required extra space cm
+  clearance: { 
     front: number;
     side: number;
   };

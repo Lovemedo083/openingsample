@@ -1,3 +1,4 @@
+```
 [GolmokScraper] === 확장 데이터 ===
 📊 업종분석:
    - 3년 생존률: 60.81%
@@ -99,3 +100,4 @@
   "screenshotPath": "golmok_result_1770562294938.png"
 }
 [GolmokScraper] Browser closed
+```
