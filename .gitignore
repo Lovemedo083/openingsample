@@ -33,3 +33,5 @@ world_api_test/**
 *.md
 !README.md
 
+*.png
+
