@@ -37,13 +37,18 @@ function App() {
   // 로그인 후 데이터 로딩 중 여부 (이 동안 로딩 화면 표시)
   const [isDataLoading, setIsDataLoading] = useState(false);
 
-  // Auth 체크
+  // 프로젝트 생성 실패 시 에러 상태
+  const [projectError, setProjectError] = useState<string | null>(null);
+
+  // Auth 체크 (중복 호출 방지)
   useEffect(() => {
+    let sessionHandled = false;
+
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      if (session?.user && !sessionHandled) {
+        sessionHandled = true;
         await handleSession(session);
-        // 이미 로그인된 사용자는 랜딩 스킵
         setShowLanding(false);
       }
       setIsAuthChecking(false);
@@ -51,7 +56,8 @@ function App() {
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
+      if (session?.user && !sessionHandled) {
+        sessionHandled = true;
         await handleSession(session);
         setShowLanding(false);
       }
@@ -83,14 +89,17 @@ function App() {
     }
   };
 
-  // localStorage에 저장된 대기 프로젝트 생성
-  const createProjectFromPending = async () => {
+  // localStorage에 저장된 대기 프로젝트 생성 (재시도 포함)
+  const createProjectFromPending = async (retryCount = 0): Promise<boolean> => {
     const pendingStr = localStorage.getItem('pending_project_data');
     if (!pendingStr) return false;
 
     // 현재 로그인된 유저 ID 가져오기
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) return false;
+    if (!authUser) {
+      setProjectError('로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.');
+      return false;
+    }
 
     try {
       const data = JSON.parse(pendingStr);
@@ -112,8 +121,17 @@ function App() {
         .single();
 
       if (insertError || !newProject) {
-        // insert 실패 — localStorage 유지해서 재시도 가능하게
         console.error('Pending project creation failed:', insertError);
+
+        // 최대 2회 재시도 (1초 간격)
+        if (retryCount < 2) {
+          await new Promise(r => setTimeout(r, 1000));
+          return createProjectFromPending(retryCount + 1);
+        }
+
+        // 재시도 실패 — localStorage 유지해서 수동 재시도 가능
+        const errMsg = insertError?.message || '알 수 없는 오류';
+        setProjectError(`프로젝트 생성에 실패했습니다 (${errMsg}). 아래 버튼을 눌러 다시 시도해주세요.`);
         return false;
       }
 
@@ -132,9 +150,17 @@ function App() {
         });
       }
       localStorage.removeItem('pending_project_data');
+      setProjectError(null);
       return true;
     } catch (err) {
       console.error('Failed to create pending project:', err);
+
+      if (retryCount < 2) {
+        await new Promise(r => setTimeout(r, 1000));
+        return createProjectFromPending(retryCount + 1);
+      }
+
+      setProjectError('프로젝트 생성 중 오류가 발생했습니다. 아래 버튼을 눌러 다시 시도해주세요.');
       return false;
     }
   };
@@ -182,6 +208,20 @@ function App() {
     setConsultingBookings([]);
     setCurrentTab('HOME');
     setShowLanding(true);
+  };
+
+  // 프로젝트 생성 수동 재시도
+  const handleRetryProjectCreation = async () => {
+    setProjectError(null);
+    setIsDataLoading(true);
+    try {
+      const created = await createProjectFromPending();
+      if (created) {
+        setHasActiveProject(true);
+      }
+    } finally {
+      setIsDataLoading(false);
+    }
   };
 
   // 랜딩에서 "창업비용 확인하기" 클릭 → 게스트로 바로 진입
@@ -241,7 +281,35 @@ function App() {
     );
   }
 
-  // 2. 로그인 화면 (내 프로젝트 보기 → 로그인)
+  // 2. 프로젝트 생성 실패 에러 화면
+  if (projectError && isAuthenticated && !hasActiveProject) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center px-6">
+        <div className="flex flex-col items-center gap-4 max-w-sm text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-2">
+            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <p className="text-slate-700 text-sm leading-relaxed">{projectError}</p>
+          <button
+            onClick={handleRetryProjectCreation}
+            className="mt-4 px-6 py-3 bg-brand-500 text-white rounded-xl font-medium text-sm hover:bg-brand-600 active:scale-95 transition-all"
+          >
+            다시 시도하기
+          </button>
+          <button
+            onClick={() => { setProjectError(null); setShowLanding(true); }}
+            className="px-4 py-2 text-slate-400 text-xs"
+          >
+            처음으로 돌아가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. 로그인 화면 (내 프로젝트 보기 → 로그인)
   if (showLogin) {
     return (
       <LoginView
