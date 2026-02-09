@@ -381,7 +381,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       setBusinessCategory(proj.business_category);
       setDong(proj.location_dong);
       setStoreSize(proj.store_size);
-      setEstimatedCosts({ min: proj.estimated_total * 0.8, max: proj.estimated_total * 1.2 });
+      setEstimatedCosts({ min: (proj.estimated_total / 10000) * 0.8, max: (proj.estimated_total / 10000) * 1.2 });
 
       // 단계 변경 감지 및 토스트 표시
       const savedStep = localStorage.getItem(`project_${proj.id}_step`);
@@ -731,7 +731,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         businessCategory,
         dong,
         storeSize,
-        estimatedTotal: (estimatedCosts.min + estimatedCosts.max) / 2,
+        estimatedTotal: ((estimatedCosts.min + estimatedCosts.max) / 2) * 10000,
         checklistData,
         systemMessage: systemMsg,
         pmMessage: pmMessage.trim() || null
@@ -760,7 +760,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         location_district: '강남구',
         location_dong: dong,
         store_size: storeSize,
-        estimated_total: (estimatedCosts.min + estimatedCosts.max) / 2,
+        estimated_total: ((estimatedCosts.min + estimatedCosts.max) / 2) * 10000,
         current_step: 6,
         status: 'PENDING_PM',
         checklist_data: checklistData

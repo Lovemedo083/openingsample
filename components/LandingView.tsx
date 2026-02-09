@@ -55,13 +55,13 @@ export const LandingView: React.FC<LandingViewProps> = ({ onStart, onGoToLogin, 
         <div className="max-w-lg mx-auto px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-500 text-xs">
             <Search size={12} className="text-slate-400" />
-            <span>이미 진행중이세요?</span>
+            <span>이미 회원이신가요?</span>
           </div>
           <button
             onClick={onGoToLogin || onStart}
             className="text-brand-600 text-xs font-bold hover:text-brand-700 transition-colors"
           >
-            내 프로젝트 보기
+            로그인하기
           </button>
         </div>
       </div>
