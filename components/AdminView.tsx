@@ -1178,13 +1178,51 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                     </div>
                   </div>
 
-                  <div className="flex gap-6">
-                    {/* 프로젝트 목록 */}
-                    <div className="w-1/3 bg-white rounded-xl border overflow-hidden">
+                  <div className="flex flex-col md:flex-row gap-3 md:gap-6">
+                    {/* 프로젝트 목록 - 모바일: 가로 스크롤, 데스크톱: 세로 리스트 */}
+                    <div className="md:w-1/3 bg-white rounded-xl border overflow-hidden shrink-0">
                       <div className="px-4 py-3 bg-gray-50 border-b font-bold text-sm">
                         프로젝트 목록 ({(projectFilterPM ? allProjects.filter(p => p.pm_id === projectFilterPM) : allProjects).length})
                       </div>
-                      <div className="divide-y max-h-[calc(100vh-300px)] overflow-y-auto">
+                      {/* 모바일: 가로 스크롤 카드 */}
+                      <div className="md:hidden flex overflow-x-auto gap-2 p-3 no-scrollbar">
+                        {(projectFilterPM ? allProjects.filter(p => p.pm_id === projectFilterPM) : allProjects).map(project => {
+                          const pm = pms.find(p => p.id === project.pm_id);
+                          const isPendingPM = project.status === 'PENDING_PM';
+                          return (
+                            <button
+                              key={project.id}
+                              onClick={() => { setSelectedProjectId(project.id); loadProjectMessages(project.id); }}
+                              className={`shrink-0 w-48 p-3 rounded-xl text-left transition-colors border-2 ${
+                                selectedProjectId === project.id ? 'bg-brand-50 border-brand-500' : 'bg-gray-50 border-transparent'
+                              } ${isPendingPM ? 'ring-2 ring-amber-300' : ''}`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-bold text-xs truncate">{project.business_category}</span>
+                                {isPendingPM ? (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold shrink-0">대기</span>
+                                ) : (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                                    project.current_step >= 8 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                  }`}>S{project.current_step}</span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-gray-500 truncate">{project.location_dong} · {project.store_size}평</p>
+                              {project.user_name && (
+                                <p className="text-[10px] text-gray-700 font-bold truncate mt-0.5">{project.user_name}</p>
+                              )}
+                              <p className="text-[10px] text-brand-600 truncate">담당: {pm?.name || '미배정'}</p>
+                            </button>
+                          );
+                        })}
+                        {allProjects.length === 0 && (
+                          <div className="p-4 text-center text-gray-400 w-full">
+                            <p className="text-sm">프로젝트가 없습니다</p>
+                          </div>
+                        )}
+                      </div>
+                      {/* 데스크톱: 세로 리스트 */}
+                      <div className="hidden md:block divide-y max-h-[calc(100vh-300px)] overflow-y-auto">
                         {(projectFilterPM ? allProjects.filter(p => p.pm_id === projectFilterPM) : allProjects).map(project => {
                           const pm = pms.find(p => p.id === project.pm_id);
                           const isPendingPM = project.status === 'PENDING_PM';
@@ -1238,7 +1276,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                     </div>
 
                     {/* 채팅 내용 */}
-                    <div className="flex-1 bg-white rounded-xl border overflow-hidden flex flex-col">
+                    <div className="flex-1 bg-white rounded-xl border overflow-hidden flex flex-col min-h-[60vh] md:min-h-0">
                       <div className="px-4 py-3 bg-gray-50 border-b font-bold text-sm">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
@@ -1322,7 +1360,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                       </div>
                       {selectedProjectId ? (
                         <>
-                          <div className="flex-1 p-4 space-y-3 overflow-y-auto max-h-[calc(100vh-350px)] bg-gray-50">
+                          <div className="flex-1 p-4 space-y-3 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-350px)] bg-gray-50">
                             {projectMessages.length === 0 ? (
                               <div className="text-center py-12 text-gray-400">
                                 <MessageSquare size={32} className="mx-auto mb-2 opacity-50" />
