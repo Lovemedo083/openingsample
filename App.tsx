@@ -72,7 +72,7 @@ function App() {
       setIsAuthenticated(true);
       setIsDataLoading(true);
       try {
-        await loadUserData();
+        await loadUserData(session.user.id);
       } finally {
         setIsDataLoading(false);
       }
@@ -80,23 +80,16 @@ function App() {
   };
 
   // localStorage에 저장된 대기 프로젝트 생성 (재시도 포함)
-  const createProjectFromPending = async (retryCount = 0): Promise<boolean> => {
+  const createProjectFromPending = async (userId: string, retryCount = 0): Promise<boolean> => {
     const pendingStr = localStorage.getItem('pending_project_data');
     if (!pendingStr) return false;
-
-    // 현재 로그인된 유저 ID 가져오기
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) {
-      setProjectError('로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요.');
-      return false;
-    }
 
     try {
       const data = JSON.parse(pendingStr);
       const { data: newProject, error: insertError } = await supabase
         .from('startup_projects')
         .insert([{
-          user_id: authUser.id,
+          user_id: userId,
           business_category: data.businessCategory,
           location_city: '서울시',
           location_district: '강남구',
@@ -116,7 +109,7 @@ function App() {
         // 최대 2회 재시도 (1초 간격)
         if (retryCount < 2) {
           await new Promise(r => setTimeout(r, 1000));
-          return createProjectFromPending(retryCount + 1);
+          return createProjectFromPending(userId, retryCount + 1);
         }
 
         // 재시도 실패 — localStorage 유지해서 수동 재시도 가능
@@ -147,7 +140,7 @@ function App() {
 
       if (retryCount < 2) {
         await new Promise(r => setTimeout(r, 1000));
-        return createProjectFromPending(retryCount + 1);
+        return createProjectFromPending(userId, retryCount + 1);
       }
 
       setProjectError('프로젝트 생성 중 오류가 발생했습니다. 아래 버튼을 눌러 다시 시도해주세요.');
@@ -155,30 +148,23 @@ function App() {
     }
   };
 
-  const loadUserData = async () => {
+  const loadUserData = async (userId: string) => {
     try {
-      // 현재 유저의 프로젝트만 조회
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return; // 인증 실패 시 조기 반환
-
       // startup_projects에서 진행중인 프로젝트 수 조회
       const { data: allProjects } = await supabase
         .from('startup_projects')
         .select('id, status')
-        .eq('user_id', authUser.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (allProjects) {
-        const activeCount = allProjects.filter((p: any) =>
-          ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE'].includes(p.status)
-        ).length;
         setConsultingBookings(allProjects.map((p: any) => ({ ...p })));
       }
 
       const { data: projects } = await supabase
         .from('startup_projects')
         .select('id, status')
-        .eq('user_id', authUser.id)
+        .eq('user_id', userId)
         .in('status', ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS'])
         .order('created_at', { ascending: false })
         .limit(1);
@@ -187,7 +173,7 @@ function App() {
         setHasActiveProject(true);
       } else {
         // 기존 프로젝트 없으면 → localStorage에서 대기 프로젝트 생성
-        const created = await createProjectFromPending();
+        const created = await createProjectFromPending(userId);
         if (created) {
           setHasActiveProject(true);
         }
@@ -215,10 +201,11 @@ function App() {
 
   // 프로젝트 생성 수동 재시도
   const handleRetryProjectCreation = async () => {
+    if (!user?.id) return;
     setProjectError(null);
     setIsDataLoading(true);
     try {
-      const created = await createProjectFromPending();
+      const created = await createProjectFromPending(user.id);
       if (created) {
         setHasActiveProject(true);
       }
