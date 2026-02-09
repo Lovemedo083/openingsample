@@ -113,9 +113,13 @@ export const uploadConsultingFile = async (consultingId: string, file: File) => 
 
 // 4. 견적서 목록 불러오기 (layoutData 매핑 추가)
 export const fetchQuotes = async (): Promise<Quote[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from('quotes')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {

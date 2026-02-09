@@ -28,7 +28,7 @@ interface FurnitureMarketViewProps {
   onBack?: () => void;
 }
 
-export const FurnitureMarketView: React.FC<FurnitureMarketViewProps> = () => {
+export const FurnitureMarketView: React.FC<FurnitureMarketViewProps> = ({ onBack }) => {
   const [listings, setListings] = useState<FurnitureListing[]>([]);
   const [filteredListings, setFilteredListings] = useState<FurnitureListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -581,7 +581,14 @@ export const FurnitureMarketView: React.FC<FurnitureMarketViewProps> = () => {
       <div className="sticky top-0 z-30 bg-white border-b">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold">가구 마켓</h1>
+            <div className="flex items-center gap-2">
+              {onBack && (
+                <button onClick={onBack} className="p-1 -ml-1 hover:bg-gray-100 rounded-full">
+                  <ChevronLeft size={24} />
+                </button>
+              )}
+              <h1 className="text-xl font-bold">가구 마켓</h1>
+            </div>
             <Button size="sm" onClick={() => setShowRegisterModal(true)}>
               <Plus size={18} className="mr-1" /> 매물 등록
             </Button>

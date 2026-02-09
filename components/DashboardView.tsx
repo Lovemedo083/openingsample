@@ -374,7 +374,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
         event: 'INSERT', schema: 'public', table: 'project_messages',
         filter: `project_id=eq.${projectId}`
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new as Message]);
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === (payload.new as Message).id);
+          return exists ? prev : [...prev, payload.new as Message];
+        });
       })
       .subscribe();
     msgChannelRef.current = channel;

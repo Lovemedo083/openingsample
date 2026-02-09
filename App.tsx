@@ -11,7 +11,6 @@ import { MyPageView } from './components/MyPageView';
 import { AdminView } from './components/AdminView';
 import { PMPortalView } from './components/PMPortalView';
 import { LoginView } from './components/LoginView';
-import { fetchConsultings } from './utils/api';
 import { DoorOpen, Loader2 } from 'lucide-react';
 
 function App() {
@@ -167,11 +166,23 @@ function App() {
 
   const loadUserData = async () => {
     try {
-      const consultings = await fetchConsultings();
-      setConsultingBookings(consultings);
-
       // 현재 유저의 프로젝트만 조회
       const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      // startup_projects에서 진행중인 프로젝트 수 조회
+      const { data: allProjects } = await supabase
+        .from('startup_projects')
+        .select('id, status')
+        .eq('user_id', authUser?.id)
+        .order('created_at', { ascending: false });
+
+      if (allProjects) {
+        const activeCount = allProjects.filter((p: any) =>
+          ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE'].includes(p.status)
+        ).length;
+        setConsultingBookings(allProjects.map((p: any) => ({ ...p })));
+      }
+
       const { data: projects } = await supabase
         .from('startup_projects')
         .select('id, status')
@@ -395,18 +406,13 @@ function App() {
 
         {currentTab === 'CONSULTING' && (
           <MyConsultationsView
-            bookings={consultingBookings}
-            onBookConsulting={() => {}}
+            isGuestMode={!isAuthenticated}
+            onLoginRequired={handleLoginRequired}
           />
         )}
 
         {currentTab === 'MORE' && (
           <MoreView
-            user={user}
-            onLogin={() => {}}
-            onLogout={handleLogout}
-            consultingCount={consultingBookings.filter((b: any) => b.status === 'IN_PROGRESS').length}
-            quoteCount={0}
             onNavigate={setCurrentTab as any}
             hasActiveProject={hasActiveProject}
             onStartNewProject={() => setCurrentTab('PROJECT')}
@@ -417,7 +423,8 @@ function App() {
           <MyPageView
             user={user}
             onLogout={handleLogout}
-            consultingCount={consultingBookings.filter((b: any) => b.status === 'IN_PROGRESS').length}
+            onProfileUpdate={(name, phone) => setUser(prev => prev ? { ...prev, name, phone } : prev)}
+            consultingCount={consultingBookings.filter((b: any) => ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE'].includes(b.status)).length}
             quoteCount={0}
           />
         )}

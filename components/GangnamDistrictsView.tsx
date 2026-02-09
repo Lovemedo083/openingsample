@@ -37,7 +37,11 @@ const COMPETITION_LABELS: Record<string, { label: string; color: string }> = {
   'LOW': { label: '경쟁 낮음', color: 'bg-green-100 text-green-700' },
 };
 
-export const GangnamDistrictsView: React.FC = () => {
+interface GangnamDistrictsViewProps {
+  onBack?: () => void;
+}
+
+export const GangnamDistrictsView: React.FC<GangnamDistrictsViewProps> = ({ onBack }) => {
   const [districts, setDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
@@ -224,6 +228,12 @@ export const GangnamDistrictsView: React.FC = () => {
       {/* 헤더 */}
       <div className="sticky top-0 z-30 bg-brand-600 text-white">
         <div className="px-4 py-6">
+          {onBack && (
+            <button onClick={onBack} className="flex items-center gap-1 text-white/80 hover:text-white mb-2 -ml-1">
+              <ChevronRight className="rotate-180" size={20} />
+              <span className="text-sm">뒤로</span>
+            </button>
+          )}
           <h1 className="text-2xl font-bold mb-1">강남구 상권 정보</h1>
           <p className="text-sm opacity-80">동별 상권 특성과 창업 비용을 한눈에</p>
         </div>
