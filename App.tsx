@@ -237,42 +237,41 @@ function App() {
 
   // Admin/PM 로그인 (숨김 기능)
   const handleAdminLogin = async (email: string, password: string): Promise<boolean> => {
-    // 만료된 Supabase Auth 세션 클리어 (401 방지)
     await supabase.auth.signOut();
 
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const res = await fetch(`${supabaseUrl}/functions/v1/admin-login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': anonKey,
-        },
-        body: JSON.stringify({ email, password }),
-      });
+    const ADMIN_PW = 'epdlfflalf1!';
+    const PM_PW = 'epdlfflalf1!';
 
-      const data = await res.json();
-      if (!data.success) return false;
-
-      if (data.role === 'admin') {
-        setIsAdmin(true);
-        setIsAuthenticated(true);
-        setUser({ id: 'admin', name: data.user.name, phone: '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
-      } else if (data.role === 'pm') {
-        setIsPM(true);
-        setPmId(data.user.id);
-        setIsAuthenticated(true);
-        setUser({ id: data.user.id, name: data.user.name + ' PM', phone: data.user.phone || '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
-      }
-
+    // Admin 로그인
+    if (email === 'admin' && password === ADMIN_PW) {
+      setIsAdmin(true);
+      setIsAuthenticated(true);
+      setUser({ id: 'admin', name: '관리자', phone: '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
       setShowLanding(false);
       setShowLogin(false);
       return true;
-    } catch (err) {
-      console.error('Admin login error:', err);
-      return false;
     }
+
+    // PM 로그인
+    if (password === PM_PW) {
+      const { data: pmData } = await supabase
+        .from('project_managers')
+        .select('id, name, phone')
+        .eq('email', email)
+        .single();
+
+      if (pmData) {
+        setIsPM(true);
+        setPmId(pmData.id);
+        setIsAuthenticated(true);
+        setUser({ id: pmData.id, name: pmData.name + ' PM', phone: pmData.phone || '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
+        setShowLanding(false);
+        setShowLogin(false);
+        return true;
+      }
+    }
+
+    return false;
   };
 
   // === 렌더링 ===
