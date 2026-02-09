@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { Button } from './Components';
 import { createNotification } from './NotificationCenter';
@@ -10,7 +10,7 @@ import {
   Truck, Store, Sparkles, Wind, CreditCard, BarChart3,
   UserCheck, Calendar, Eye, Download, RefreshCw, Clock,
   CheckCircle, XCircle, AlertCircle, Image, MessageSquare,
-  Briefcase, Send, ArrowLeft
+  Briefcase, Send, ArrowLeft, Loader2
 } from 'lucide-react';
 
 // Toss 결제 키 (환경변수) - Client Key만 클라이언트에서 사용 (공개키)
@@ -103,6 +103,7 @@ interface ProjectMessage {
   project_id: string;
   sender_type: 'USER' | 'PM' | 'SYSTEM';
   message: string;
+  attachments?: any[];
   created_at: string;
 }
 
@@ -151,6 +152,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
   const [adminMessage, setAdminMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [adminMessageType, setAdminMessageType] = useState<'PM' | 'SYSTEM'>('PM');
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDesc, setPaymentDesc] = useState('계약금');
 
   // 필터/검색
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,22 +246,163 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
   };
 
   const sendAdminMessage = async () => {
-    if (!adminMessage.trim() || !selectedProjectId) return;
+    if ((!adminMessage.trim() && !selectedImage) || !selectedProjectId) return;
 
     setSendingMessage(true);
+
+    let attachments: any[] | null = null;
+
+    // 이미지 업로드
+    if (selectedImage) {
+      setUploadingImage(true);
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `${selectedProjectId}/${Date.now()}.${fileExt}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(fileName, selectedImage);
+
+      if (!uploadError && uploadData) {
+        const { data: urlData } = supabase.storage
+          .from('chat-images')
+          .getPublicUrl(fileName);
+
+        attachments = [{
+          url: urlData.publicUrl,
+          type: selectedImage.type,
+          name: selectedImage.name
+        }];
+      }
+      setUploadingImage(false);
+    }
+
     const { error } = await supabase.from('project_messages').insert({
       project_id: selectedProjectId,
       sender_type: adminMessageType === 'SYSTEM' ? 'SYSTEM' : 'PM',
-      message: `[관리자] ${adminMessage.trim()}`
+      message: adminMessage.trim() || '📷 이미지',
+      attachments
     });
 
     if (!error) {
       setAdminMessage('');
+      setSelectedImage(null);
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       loadProjectMessages(selectedProjectId);
     } else {
       alert('메시지 전송 실패: ' + error.message);
     }
     setSendingMessage(false);
+  };
+
+  // 이미지 선택
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('이미지는 5MB 이하만 업로드 가능합니다.');
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const cancelImageUpload = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // 금액 입력 포맷팅
+  const handleAmountChange = (value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue) {
+      setPaymentAmount(parseInt(numericValue, 10).toLocaleString('ko-KR'));
+    } else {
+      setPaymentAmount('');
+    }
+  };
+
+  // 결제 요청 (PM 이름으로)
+  const sendPaymentRequest = async () => {
+    if (!selectedProjectId || !paymentAmount.trim()) return;
+
+    const selectedProject = allProjects.find(p => p.id === selectedProjectId);
+    if (!selectedProject) return;
+
+    const amount = parseInt(paymentAmount.replace(/,/g, ''), 10);
+    if (isNaN(amount) || amount <= 0) {
+      alert('올바른 금액을 입력해주세요.');
+      return;
+    }
+    if (amount > 1_000_000_000) {
+      alert('결제 금액이 너무 큽니다. (최대 10억원)');
+      return;
+    }
+
+    // 기존 pending 결제 확인
+    const { data: existingPending } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('furniture_listing_id', selectedProjectId)
+      .eq('status', 'pending');
+
+    if (existingPending && existingPending.length > 0) {
+      if (!window.confirm('이미 대기 중인 결제 요청이 있습니다.\n기존 요청을 취소하고 새로 보내시겠습니까?')) {
+        return;
+      }
+      for (const p of existingPending) {
+        await supabase.from('payments').update({ status: 'cancelled' }).eq('id', p.id);
+      }
+    }
+
+    const { data: payment, error: payError } = await supabase
+      .from('payments')
+      .insert({
+        furniture_listing_id: selectedProjectId,
+        amount,
+        status: 'pending',
+        payment_method: 'toss',
+      })
+      .select()
+      .single();
+
+    if (payError || !payment) {
+      alert('결제 요청 생성에 실패했습니다.');
+      return;
+    }
+
+    const formattedAmount = amount.toLocaleString('ko-KR');
+    await supabase.from('project_messages').insert({
+      project_id: selectedProjectId,
+      sender_type: 'PM',
+      message: `💳 결제 요청\n\n금액: ${formattedAmount}원\n내용: ${paymentDesc}\n\n아래 결제하기 버튼을 눌러 결제를 진행해주세요.`,
+      attachments: [{
+        type: 'payment_request',
+        url: '',
+        name: paymentDesc,
+        payment_id: payment.id,
+        amount: amount,
+      }]
+    });
+
+    if (selectedProject.user_id) {
+      await createNotification({
+        userId: selectedProject.user_id,
+        projectId: selectedProjectId,
+        type: 'PAYMENT_REQUEST',
+        title: '결제 요청',
+        message: `${formattedAmount}원 결제 요청이 도착했습니다. (${paymentDesc})`,
+      });
+    }
+
+    loadProjectMessages(selectedProjectId);
+    setShowPaymentModal(false);
+    setPaymentAmount('');
+    setPaymentDesc('계약금');
   };
 
   // PM 배정 선택 상태
@@ -1387,6 +1536,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                                       {msg.sender_type === 'PM' ? 'PM' : msg.sender_type === 'USER' ? '고객' : '시스템'}
                                     </p>
                                     <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
+                                    {/* 이미지 첨부 */}
+                                    {msg.attachments?.filter((a: any) => a.type?.startsWith('image/')).map((a: any, i: number) => (
+                                      <img key={i} src={a.url} alt={a.name} className="mt-2 max-w-full rounded-lg max-h-48 cursor-pointer" onClick={() => window.open(a.url, '_blank')} />
+                                    ))}
                                     <p className={`text-[10px] mt-1 ${
                                       msg.sender_type === 'PM' ? 'text-white/50' : 'text-gray-300'
                                     }`}>
@@ -1398,8 +1551,23 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                             )}
                           </div>
 
+                          {/* 이미지 미리보기 */}
+                          {imagePreview && (
+                            <div className="bg-gray-100 border-t p-3">
+                              <div className="relative inline-block">
+                                <img src={imagePreview} alt="미리보기" className="h-20 rounded-lg" />
+                                <button
+                                  onClick={cancelImageUpload}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Admin 메시지 입력 */}
-                          <div className="border-t p-4 bg-white">
+                          <div className="border-t p-3 md:p-4 bg-white">
                             <div className="flex gap-2 mb-2">
                               <button
                                 onClick={() => setAdminMessageType('PM')}
@@ -1409,7 +1577,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                               >
-                                PM 대리 답장
+                                PM 대리
                               </button>
                               <button
                                 onClick={() => setAdminMessageType('SYSTEM')}
@@ -1419,23 +1587,44 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                 }`}
                               >
-                                시스템 메시지
+                                시스템
                               </button>
                             </div>
+                            <input
+                              type="file"
+                              ref={fileInputRef}
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleImageSelect}
+                            />
                             <div className="flex gap-2">
+                              <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shrink-0"
+                                disabled={uploadingImage}
+                              >
+                                {uploadingImage ? <Loader2 className="animate-spin" size={18} /> : <Image size={18} className="text-gray-500" />}
+                              </button>
+                              <button
+                                onClick={() => setShowPaymentModal(true)}
+                                className="p-2 bg-orange-100 rounded-lg hover:bg-orange-200 transition-colors shrink-0"
+                                title="결제 요청"
+                              >
+                                <CreditCard size={18} className="text-orange-500" />
+                              </button>
                               <input
                                 type="text"
-                                placeholder={adminMessageType === 'PM' ? 'PM으로 메시지 보내기...' : '시스템 공지 보내기...'}
-                                className="flex-1 px-4 py-2 bg-gray-100 rounded-lg text-sm"
+                                placeholder={adminMessageType === 'PM' ? 'PM으로 메시지...' : '시스템 공지...'}
+                                className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm min-w-0"
                                 value={adminMessage}
                                 onChange={(e) => setAdminMessage(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && sendAdminMessage()}
                               />
                               <Button
                                 onClick={sendAdminMessage}
-                                disabled={sendingMessage || !adminMessage.trim()}
+                                disabled={sendingMessage || (!adminMessage.trim() && !selectedImage)}
                               >
-                                {sendingMessage ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
+                                {sendingMessage ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
                               </Button>
                             </div>
                           </div>
@@ -1735,6 +1924,76 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
             <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-3">
               <Button variant="outline" onClick={() => { setShowPMModal(false); setEditingPM(null); setNewSpecialty(''); }}>취소</Button>
               <Button onClick={savePM}><Save size={18} className="mr-2" />{editingPM ? '수정' : '추가'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 결제 요청 모달 */}
+      {showPaymentModal && selectedProjectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden m-4">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="text-lg font-bold">💳 결제 요청 (PM 이름으로)</h2>
+              <button onClick={() => { setShowPaymentModal(false); setPaymentAmount(''); setPaymentDesc('계약금'); }} className="p-2 hover:bg-gray-100 rounded-full">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">프로젝트</p>
+                <p className="font-bold text-sm">
+                  {(() => { const p = allProjects.find(p => p.id === selectedProjectId); return p ? `${p.business_category} · ${p.location_dong} · ${p.store_size}평` : ''; })()}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">결제 금액 (원) *</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={paymentAmount}
+                  onChange={(e) => handleAmountChange(e.target.value)}
+                  placeholder="예: 5,000,000"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-lg font-bold"
+                />
+                {paymentAmount && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {parseInt(paymentAmount.replace(/,/g, ''), 10) >= 10000
+                      ? `${(parseInt(paymentAmount.replace(/,/g, ''), 10) / 10000).toFixed(0)}만원`
+                      : `${paymentAmount}원`
+                    }
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">결제 내용</label>
+                <input
+                  type="text"
+                  value={paymentDesc}
+                  onChange={(e) => setPaymentDesc(e.target.value)}
+                  placeholder="예: 계약금, 중도금, 잔금"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+                />
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                <p className="text-xs text-orange-700">
+                  PM 이름으로 고객 채팅에 결제 요청이 전송됩니다.<br/>
+                  고객이 결제하기 버튼을 누르면 토스페이로 결제가 진행됩니다.
+                </p>
+              </div>
+
+              <Button
+                fullWidth
+                onClick={sendPaymentRequest}
+                disabled={!paymentAmount.trim()}
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                <CreditCard size={18} className="mr-2" />
+                결제 요청 보내기
+              </Button>
             </div>
           </div>
         </div>
