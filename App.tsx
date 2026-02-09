@@ -39,56 +39,33 @@ function App() {
   // 프로젝트 생성 실패 시 에러 상태
   const [projectError, setProjectError] = useState<string | null>(null);
 
-  // Auth 체크
+  // Auth 체크 — onAuthStateChange만 사용 (getSession은 lock hang 유발)
   useEffect(() => {
-    let cancelled = false;
+    let handled = false;
 
-    // 1) getSession으로 초기 세션 확인 (타임아웃 포함)
-    const initAuth = async () => {
-      console.log('[Auth] initAuth start');
-      try {
-        const result = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<{ data: { session: null } }>((resolve) =>
-            setTimeout(() => { console.log('[Auth] getSession timeout'); resolve({ data: { session: null } }); }, 4000)
-          )
-        ]);
-        if (cancelled) return;
-        const session = result.data.session;
-        console.log('[Auth] getSession result:', session ? 'session found' : 'no session');
-        if (session?.user) {
-          await handleSession(session);
-          setShowLanding(false);
-        }
-      } catch (e) {
-        console.error('[Auth] initAuth error:', e);
-      }
-      if (!cancelled) {
-        console.log('[Auth] setIsAuthChecking(false)');
-        setIsAuthChecking(false);
-      }
-    };
-    initAuth();
-
-    // 2) 이후 로그인/로그아웃 이벤트 처리 (INITIAL_SESSION은 위에서 처리)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] onAuthStateChange:', event);
-      if (cancelled) return;
-      if (event === 'INITIAL_SESSION') return;
-      if (session?.user && event === 'SIGNED_IN') {
-        setIsDataLoading(true);
-        try {
-          await handleSession(session);
-          setShowLanding(false);
-        } finally {
-          setIsDataLoading(false);
-        }
+      console.log('[Auth] event:', event, session?.user ? 'user=' + session.user.id.slice(0, 8) : 'no user');
+
+      if (session?.user && !handled) {
+        handled = true;
+        console.log('[Auth] handleSession start');
+        await handleSession(session);
+        setShowLanding(false);
+        console.log('[Auth] handleSession done');
       }
+
+      setIsAuthChecking(false);
     });
 
+    // 안전장치: 5초 안에 아무 이벤트도 안 오면 로딩 해제
+    const timeout = setTimeout(() => {
+      console.log('[Auth] safety timeout — no event received');
+      setIsAuthChecking(false);
+    }, 5000);
+
     return () => {
-      cancelled = true;
       subscription.unsubscribe();
+      clearTimeout(timeout);
     };
   }, []);
 
