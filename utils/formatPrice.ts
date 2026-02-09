@@ -19,7 +19,7 @@ export function formatPrice(price: number): string {
  */
 export function formatPriceMan(price: number): string {
   if (price >= 10000) {
-    return `${(price / 10000).toFixed(0)}억`;
+    return `${(price / 10000).toFixed(1)}억`;
   } else if (price >= 1000) {
     return `${(price / 1000).toFixed(1)}천만`;
   }
