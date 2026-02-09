@@ -86,13 +86,13 @@ const SAMPLE_DATA: GolmokReportData = {
 
 // --- Sub Components ---
 
-const TrendIcon: React.FC<{ trend: 'UP' | 'DOWN' | 'STABLE' }> = ({ trend }) => {
+export const TrendIcon: React.FC<{ trend: 'UP' | 'DOWN' | 'STABLE' }> = ({ trend }) => {
   if (trend === 'UP') return <TrendingUp size={16} className="text-green-500" />;
   if (trend === 'DOWN') return <TrendingDown size={16} className="text-red-500" />;
   return <Minus size={16} className="text-gray-400" />;
 };
 
-const RiskBadge: React.FC<{ level: 'LOW' | 'MEDIUM' | 'HIGH' }> = ({ level }) => {
+export const RiskBadge: React.FC<{ level: 'LOW' | 'MEDIUM' | 'HIGH' }> = ({ level }) => {
   const config = {
     LOW: { bg: 'bg-green-100', text: 'text-green-700', label: '낮음', icon: CheckCircle },
     MEDIUM: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: '보통', icon: Info },
@@ -108,7 +108,7 @@ const RiskBadge: React.FC<{ level: 'LOW' | 'MEDIUM' | 'HIGH' }> = ({ level }) =>
   );
 };
 
-const ScoreGauge: React.FC<{ score: number }> = ({ score }) => {
+export const ScoreGauge: React.FC<{ score: number }> = ({ score }) => {
   const color = score >= 70 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (score / 100) * circumference;
@@ -145,7 +145,7 @@ const ScoreGauge: React.FC<{ score: number }> = ({ score }) => {
   );
 };
 
-const MetricCard: React.FC<{
+export const MetricCard: React.FC<{
   icon: React.ReactNode;
   label: string;
   value: string;

@@ -160,7 +160,10 @@ export class GolmokScraper {
     }
   }
 
-  async analyze(request: GolmokAnalysisRequest): Promise<GolmokAnalysisResult> {
+  async analyze(
+    request: GolmokAnalysisRequest,
+    onProgress?: (percent: number, message: string) => void,
+  ): Promise<GolmokAnalysisResult> {
     if (!this.page) {
       throw new Error('Browser not initialized. Call init() first.');
     }
@@ -179,8 +182,17 @@ export class GolmokScraper {
       analyzedAt: new Date().toISOString(),
     };
 
+    // 주소에서 동 이름 추출: "서울 강남구 역삼1동" → base "역삼", full "역삼1동"
+    const dongFullMatch = request.address.match(/([가-힣]+\d*동)/);
+    const targetDongFull = dongFullMatch ? dongFullMatch[1] : ''; // "역삼1동", "논현2동", "청담동"
+    const dongBaseMatch = request.address.match(/([가-힣]+)\d*동/);
+    const targetDongBase = dongBaseMatch ? dongBaseMatch[1] : ''; // "역삼", "논현", "압구정"
+    const categoryToSelect = request.businessCategory || '외식업';
+    console.log(`[GolmokScraper] Target dong: full="${targetDongFull}", base="${targetDongBase}", category: "${categoryToSelect}"`);
+
     try {
       console.log(`[GolmokScraper] Analyzing: ${request.address}`);
+      onProgress?.(5, '브라우저 초기화 완료');
 
       // 1. 페이지 접속
       await this.page.goto('https://golmok.seoul.go.kr/main.do', {
@@ -188,6 +200,7 @@ export class GolmokScraper {
         timeout: 30000,
       });
       console.log('[GolmokScraper] Page loaded');
+      onProgress?.(15, '골목상권 사이트 로딩 완료');
       await this.delay(3000);
 
       // 메인 대시보드에서 구/업종 필터 선택
@@ -221,29 +234,29 @@ export class GolmokScraper {
         await this.delay(1500);
       }
 
-      // 2. 업종 선택 (외식업)
-      const businessSelected = await this.page.evaluate(() => {
+      // 2. 업종 선택 (파라미터 기반)
+      const businessSelected = await this.page.evaluate((cat: string) => {
         const selects = document.querySelectorAll('select');
         for (const select of selects) {
           const options = Array.from(select.options);
           for (const opt of options) {
-            if (opt.text.includes('외식업')) {
+            if (opt.text.includes(cat)) {
               select.value = opt.value;
               select.dispatchEvent(new Event('change', { bubbles: true }));
-              return '외식업';
+              return cat;
             }
           }
         }
         // 버튼/링크로 선택 시도
         const links = document.querySelectorAll('a, button, li');
         for (const link of links) {
-          if (link.textContent?.trim() === '외식업') {
+          if (link.textContent?.trim() === cat) {
             (link as HTMLElement).click();
-            return '외식업 (click)';
+            return cat + ' (click)';
           }
         }
         return null;
-      });
+      }, categoryToSelect);
       if (businessSelected) {
         console.log(`[GolmokScraper] Business type selected: ${businessSelected}`);
         await this.delay(1500);
@@ -254,6 +267,8 @@ export class GolmokScraper {
 
       // 디버그: 필터 적용 후 스크린샷
       await this.page.screenshot({ path: 'debug_1_initial.png' });
+
+      onProgress?.(25, '필터 설정 완료');
 
       // 4. "나도 곧 사장" 탭 클릭
       console.log('[GolmokScraper] Clicking "나도 곧 사장" tab...');
@@ -313,19 +328,20 @@ export class GolmokScraper {
       await this.page.screenshot({ path: 'debug_2_business.png' });
       console.log('[GolmokScraper] Debug screenshot: debug_2_business.png');
 
-      // 외식업 탭 선택 (첫 번째 탭)
-      console.log('[GolmokScraper] Selecting 외식업 tab...');
-      await this.page.evaluate(() => {
+      // 업종 탭 선택 (파라미터 기반)
+      console.log(`[GolmokScraper] Selecting ${categoryToSelect} tab...`);
+      await this.page.evaluate((cat: string) => {
+        const catShort = cat.replace('업', ''); // "외식업" → "외식", "전체" → "전체"
         const tabs = document.querySelectorAll('[class*="tab"], button, li, a');
         for (const tab of tabs) {
           const text = tab.textContent?.trim() || '';
-          if (text.includes('외식') || text === '외식업') {
+          if (text === cat || text.includes(catShort)) {
             (tab as HTMLElement).click();
             return true;
           }
         }
         return false;
-      });
+      }, categoryToSelect);
       await this.delay(1000);
 
       // "확인" 버튼 클릭
@@ -350,52 +366,490 @@ export class GolmokScraper {
       await this.page.screenshot({ path: 'debug_3_map.png' });
       console.log('[GolmokScraper] Debug screenshot: debug_3_map.png');
 
-      // 지도가 로드되었으므로 바로 원형 마커 클릭으로 이동
-      console.log('[GolmokScraper] Map loaded with dong circles, ready to click...');
+      // 4-1. 페이지의 모든 select, button 등 폼 요소 디버그 출력
+      console.log('[GolmokScraper] === DEBUG: Inspecting all form elements on page ===');
+      const formDebug = await this.page.evaluate(() => {
+        const info: string[] = [];
+        // 모든 select 요소
+        const selects = document.querySelectorAll('select');
+        for (let i = 0; i < selects.length; i++) {
+          const s = selects[i];
+          const opts = Array.from(s.options).map(o => `${o.value}:${o.text.trim()}`).slice(0, 10);
+          info.push(`SELECT#${s.id||'(no-id)'} name="${s.name||''}" value="${s.value}" options=[${opts.join(', ')}]`);
+        }
+        // 모든 button/a 요소 중 의미있는 것
+        const btns = document.querySelectorAll('button, a.btn, [class*="btn"], input[type="button"], input[type="submit"]');
+        for (const b of btns) {
+          const t = b.textContent?.trim() || '';
+          if (t.length > 0 && t.length < 30) {
+            info.push(`BTN[${b.tagName}.${(b as HTMLElement).className?.toString().slice(0,30)}] "${t}"`);
+          }
+        }
+        // 체크박스
+        const checks = document.querySelectorAll('input[type="checkbox"]');
+        for (const c of checks) {
+          const label = c.parentElement?.textContent?.trim() || c.nextElementSibling?.textContent?.trim() || '';
+          info.push(`CHECKBOX#${(c as HTMLInputElement).id||'(no-id)'} checked=${(c as HTMLInputElement).checked} label="${label.slice(0,40)}"`);
+        }
+        return info;
+      });
+      for (const line of formDebug) {
+        console.log(`[GolmokScraper]   ${line}`);
+      }
 
-      // 5. 먼저 왼쪽 사이드바의 순위 항목 클릭 시도
-      console.log('[GolmokScraper] Looking for ranking items in sidebar...');
+      // 4-2. 자치구 드롭다운을 "강남구"로 선택
+      // 핵심: #selectSigun이 2개 존재 (중복 ID). 모두 변경 + jQuery change 트리거 필요
+      console.log('[GolmokScraper] Selecting 강남구 in ALL #selectSigun elements...');
 
-      const rankingClicked = await this.page.evaluate(() => {
-        // 사이드바에서 "1위", "2위" 등의 순위 항목 찾기
-        const items = document.querySelectorAll('li, tr, [class*="rank"], [class*="list-item"], a');
+      const sigunChangeResult = await this.page.evaluate(() => {
+        const selects = document.querySelectorAll('#selectSigun') as NodeListOf<HTMLSelectElement>;
+        const results: string[] = [];
+        for (let i = 0; i < selects.length; i++) {
+          const select = selects[i];
+          const prevVal = select.value;
+          select.value = '11680';
+          // 네이티브 이벤트
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          select.dispatchEvent(new Event('input', { bubbles: true }));
+          results.push(`#selectSigun[${i}]: ${prevVal} → 11680`);
+        }
+        // jQuery 이벤트 트리거 (사이트가 jQuery를 사용할 가능성 높음)
+        try {
+          if ((window as any).jQuery || (window as any).$) {
+            const $ = (window as any).jQuery || (window as any).$;
+            $('#selectSigun').val('11680').trigger('change');
+            results.push('jQuery trigger: success');
+          }
+        } catch (e) {
+          results.push(`jQuery trigger: error ${e}`);
+        }
+        return results;
+      });
+      console.log('[GolmokScraper] Sigun change results:', sigunChangeResult);
+
+      // 변경 후 대기 (AJAX 데이터 로딩)
+      await this.delay(3000);
+
+      // 변경 확인
+      const sigunAfter = await this.page.evaluate(() => {
+        const selects = document.querySelectorAll('#selectSigun') as NodeListOf<HTMLSelectElement>;
+        return Array.from(selects).map((s, i) => `#selectSigun[${i}].value = "${s.value}" (${s.options[s.selectedIndex]?.text})`);
+      });
+      console.log('[GolmokScraper] After change:', sigunAfter);
+
+      // 사이트의 JS 함수 직접 호출 시도
+      console.log('[GolmokScraper] Trying to invoke site JS functions...');
+      const jsFuncResult = await this.page.evaluate(() => {
+        const results: string[] = [];
+        // 사이트 내부 함수 이름 추측: fnSearch, search, fn_search, getList, fnList, changeGu 등
+        const funcNames = [
+          'fnSearch', 'fn_search', 'search', 'getList', 'fnList',
+          'changeGu', 'changeSigun', 'fnChangeSigun', 'selectGu',
+          'fn_selectSigun', 'fnSigunChange', 'fn_init', 'fnInit',
+          'changeArea', 'fnSelectArea', 'setArea'
+        ];
+        for (const name of funcNames) {
+          if (typeof (window as any)[name] === 'function') {
+            try {
+              (window as any)[name]('11680');
+              results.push(`${name}('11680'): called`);
+            } catch (e) {
+              results.push(`${name}: error ${e}`);
+            }
+          }
+        }
+        // window에 등록된 함수 중 sigun/gu/area 관련 찾기
+        const allFuncs: string[] = [];
+        for (const key of Object.keys(window)) {
+          if (typeof (window as any)[key] === 'function' && key.length < 30) {
+            const lk = key.toLowerCase();
+            if (lk.includes('sigun') || lk.includes('gu') || lk.includes('area') || lk.includes('district') || lk.includes('region') || lk.includes('search') || lk.includes('list') || lk.includes('change')) {
+              allFuncs.push(key);
+            }
+          }
+        }
+        results.push(`Related functions found: [${allFuncs.join(', ')}]`);
+        return results;
+      });
+      for (const r of jsFuncResult) {
+        console.log(`[GolmokScraper]   ${r}`);
+      }
+      await this.delay(3000);
+
+      // 4-3. #region_checkbox 체크 (지도에 전체 지역 표시)
+      console.log('[GolmokScraper] Clicking #region_checkbox (지도에 전체 지역 표시)...');
+      try {
+        // 체크박스의 현재 상태 확인
+        const isChecked = await this.page.evaluate(() => {
+          const cb = document.getElementById('region_checkbox') as HTMLInputElement;
+          return cb ? cb.checked : null;
+        });
+        console.log(`[GolmokScraper] #region_checkbox checked: ${isChecked}`);
+
+        if (isChecked === false) {
+          // Puppeteer 네이티브 클릭 사용 (label 클릭)
+          await this.page.click('label[for="region_checkbox"]').catch(async () => {
+            // label이 없으면 체크박스 직접 클릭
+            await this.page.click('#region_checkbox');
+          });
+          console.log('[GolmokScraper] Clicked #region_checkbox');
+        } else if (isChecked === null) {
+          console.log('[GolmokScraper] #region_checkbox not found');
+        } else {
+          console.log('[GolmokScraper] #region_checkbox already checked');
+        }
+      } catch (e) {
+        console.log(`[GolmokScraper] Error clicking checkbox: ${e}`);
+        // fallback: evaluate로 직접 체크
+        await this.page.evaluate(() => {
+          const cb = document.getElementById('region_checkbox') as HTMLInputElement;
+          if (cb && !cb.checked) {
+            cb.checked = true;
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            cb.dispatchEvent(new Event('click', { bubbles: true }));
+          }
+        });
+      }
+      await this.delay(5000); // 지도 업데이트 대기
+
+      // 업데이트 후 사이드바 확인
+      const afterCheckSidebar = await this.page.evaluate(() => {
+        const items = document.querySelectorAll('li, tr, [class*="rank"], [class*="list"]');
+        const texts: string[] = [];
         for (const item of items) {
-          const text = item.textContent?.trim() || '';
-          // "1위 논현1동" 같은 패턴 찾기
-          if (text.match(/\d위\s*[가-힣0-9]+동/) || text.match(/논현|역삼|청담|삼성|대치|개포|도곡/)) {
-            (item as HTMLElement).click();
-            return text.slice(0, 50);
+          const t = item.textContent?.trim() || '';
+          if (t.match(/[가-힣]+\d*동/) && t.length < 80) {
+            texts.push(t.replace(/\s+/g, ' ').slice(0, 60));
+          }
+        }
+        return texts.slice(0, 15);
+      });
+      console.log('[GolmokScraper] Sidebar after checkbox + district change:', afterCheckSidebar);
+
+      await this.page.screenshot({ path: 'debug_4_after_district.png' });
+      console.log('[GolmokScraper] Debug screenshot: debug_4_after_district.png');
+
+      // 4-4. 업종 선택
+      // 방법 1: #storeServiceL 드롭다운 설정
+      const categoryCodeMap: Record<string, string> = {
+        '외식업': 'CS100000',
+        '서비스업': 'CS200000',
+        '소매업': 'CS300000',
+        '전체': 'CS000000',
+      };
+      const categoryCode = categoryCodeMap[categoryToSelect] || 'CS000000';
+      console.log(`[GolmokScraper] Setting business category: "${categoryToSelect}" (${categoryCode})...`);
+      try {
+        await this.page.select('#storeServiceL', categoryCode);
+        console.log('[GolmokScraper] #storeServiceL set via page.select');
+      } catch (e) {
+        console.log('[GolmokScraper] #storeServiceL select failed');
+      }
+      await this.delay(1000);
+
+      // 방법 2: 업종 버튼 클릭 (사이트에 "외식업", "서비스업" 등 버튼이 있음)
+      // 디버그 로그에서 확인: BTN "외식업선택안됨", BTN "외식업" 등
+      if (categoryToSelect !== '전체') {
+        const catBtnResult = await this.page.evaluate((cat: string) => {
+          const buttons = document.querySelectorAll('button');
+          const clicked: string[] = [];
+          for (const btn of buttons) {
+            const text = btn.textContent?.trim() || '';
+            // "외식업", "외식업선택안됨" 등 매칭
+            if (text === cat || text === cat + '선택안됨') {
+              btn.click();
+              clicked.push(text);
+            }
+          }
+          return clicked.length > 0 ? clicked : null;
+        }, categoryToSelect);
+        if (catBtnResult) {
+          console.log(`[GolmokScraper] Category buttons clicked: ${catBtnResult.join(', ')}`);
+        } else {
+          console.log(`[GolmokScraper] No "${categoryToSelect}" button found`);
+        }
+      }
+      await this.delay(2000);
+
+      // 4-5. 행정동 드롭다운에서 타겟 동 선택 (숨겨진 DD/SPAN 요소)
+      // 사이트에 DD 안에 모든 행정동 목록이 있음: "전체개포1동...역삼1동..."
+      console.log(`[GolmokScraper] Selecting "${targetDongFull}" from hidden dong dropdown...`);
+      const dongDropdownResult = await this.page.evaluate((dongFull: string) => {
+        // DD 내부의 A/SPAN 요소에서 동 이름 찾기
+        const candidates = document.querySelectorAll('dd a, dd span, dd li a span');
+        for (const el of candidates) {
+          const text = el.textContent?.trim() || '';
+          if (text === dongFull) {
+            (el as HTMLElement).click();
+            return `clicked: "${text}" (${el.tagName})`;
+          }
+        }
+        // fallback: 모든 A/SPAN에서 찾기
+        const allLinks = document.querySelectorAll('a span, li a');
+        for (const el of allLinks) {
+          const text = el.textContent?.trim() || '';
+          if (text === dongFull) {
+            (el as HTMLElement).click();
+            return `fallback-clicked: "${text}" (${el.tagName})`;
           }
         }
         return null;
-      });
-
-      if (rankingClicked) {
-        console.log(`[GolmokScraper] Clicked ranking item: ${rankingClicked}`);
-        await this.delay(3000);
-
-        // 클릭 후 스크린샷
-        await this.page.screenshot({ path: 'debug_3b_ranking_click.png' });
+      }, targetDongFull);
+      if (dongDropdownResult) {
+        console.log(`[GolmokScraper] Dong dropdown: ${dongDropdownResult}`);
+      } else {
+        console.log('[GolmokScraper] Dong not found in hidden dropdown');
       }
+      await this.delay(5000); // 동 선택 후 지도/사이드바 업데이트 대기
 
-      // 6. 지도에서 동별 원형 마커 클릭
-      console.log('[GolmokScraper] Looking for dong circle markers on map...');
+      // 동 선택 후 사이드바 확인
+      const afterDongSelect = await this.page.evaluate(() => {
+        const items = document.querySelectorAll('li, tr, [class*="rank"], [class*="list"]');
+        const texts: string[] = [];
+        for (const item of items) {
+          const t = item.textContent?.trim() || '';
+          if (t.match(/[가-힣]+\d*동/) && t.length < 80) {
+            texts.push(t.replace(/\s+/g, ' ').slice(0, 60));
+          }
+        }
+        return texts.slice(0, 10);
+      });
+      console.log('[GolmokScraper] Sidebar after dong dropdown select:', afterDongSelect);
 
-      // 여러 위치에서 원형 마커 클릭 시도
-      const clickPositions = [
-        { x: 950, y: 400, name: '중앙 원' },
-        { x: 1050, y: 350, name: '오른쪽 상단 원' },
-        { x: 850, y: 450, name: '왼쪽 하단 원' },
-        { x: 1100, y: 500, name: '오른쪽 하단 원' },
-      ];
+      console.log('[GolmokScraper] Map loaded with dong circles, ready to click...');
+      onProgress?.(40, '지도 로딩 완료, 데이터 추출 중...');
 
       let reportFound = false;
       let sidebarData: any = null;
 
-      for (const pos of clickPositions) {
-        console.log(`[GolmokScraper] Clicking ${pos.name} at (${pos.x}, ${pos.y})...`);
-        await this.page.mouse.click(pos.x, pos.y);
-        await this.delay(3000); // 사이드바 로딩 대기
+      // === 5. 타겟 동 찾기: 3가지 전략 ===
+      console.log(`[GolmokScraper] === Finding target dong: "${targetDongFull}" ===`);
+
+      // --- 전략 1: DOM 전체에서 타겟 동 이름을 가진 가장 구체적 요소 찾아 클릭 ---
+      // (지도 오버레이, 사이드바, 어디든 "역삼1동" 텍스트가 있으면 찾음)
+      console.log(`[GolmokScraper] Strategy 1: DOM-wide search for "${targetDongFull}"...`);
+      const domSearchResult = await this.page.evaluate((dongFull: string) => {
+        // 모든 요소에서 동 이름을 포함하는 것을 찾되, 가장 구체적(리프에 가까운) 요소 선택
+        const candidates: { el: HTMLElement; textLen: number; childCount: number; tag: string; rect: any }[] = [];
+
+        const allElements = document.querySelectorAll('*');
+        for (const el of allElements) {
+          const text = el.textContent?.trim() || '';
+          if (text.includes(dongFull) && text.length < 100) {
+            const rect = (el as HTMLElement).getBoundingClientRect();
+            candidates.push({
+              el: el as HTMLElement,
+              textLen: text.length,
+              childCount: el.children.length,
+              tag: el.tagName,
+              rect: { x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) },
+            });
+          }
+        }
+
+        // 자식이 적고(리프), 텍스트가 짧은(구체적) 요소 우선
+        candidates.sort((a, b) => {
+          if (a.childCount !== b.childCount) return a.childCount - b.childCount;
+          return a.textLen - b.textLen;
+        });
+
+        // 디버그: 상위 5개 후보 출력
+        const debugList = candidates.slice(0, 5).map(c =>
+          `${c.tag}(children=${c.childCount}, len=${c.textLen}) at (${c.rect.x},${c.rect.y}) "${c.el.textContent?.trim().slice(0, 40)}"`
+        );
+
+        if (candidates.length > 0) {
+          const best = candidates[0];
+          best.el.click();
+          return { found: true, method: 'dom-search', debugList, clicked: best.el.textContent?.trim().slice(0, 50), tag: best.tag };
+        }
+
+        return { found: false, method: 'dom-search', debugList, clicked: null, tag: null };
+      }, targetDongFull);
+
+      console.log(`[GolmokScraper] DOM search result:`, JSON.stringify(domSearchResult));
+
+      if (domSearchResult.found) {
+        console.log(`[GolmokScraper] Found & clicked via DOM: "${domSearchResult.clicked}" (${domSearchResult.tag})`);
+        await this.delay(3000);
+
+        // 클릭 후 "간략 보고서" 버튼 눌러서 보고서 패널 열기
+        await this.clickReportButton();
+        await this.delay(3000);
+
+        sidebarData = await this.extractReportData();
+        if (sidebarData?.report?.dongName) {
+          console.log(`[GolmokScraper] Report extracted: dongName="${sidebarData.report.dongName}"`);
+          reportFound = true;
+        }
+      }
+
+      // --- 전략 2: 사이드바 순위 목록에서 찾기 (상위 10개만 표시됨) ---
+      if (!reportFound) {
+        console.log(`[GolmokScraper] Strategy 2: Sidebar ranking search...`);
+
+        const sidebarItems = await this.page.evaluate(() => {
+          const items = document.querySelectorAll('li, tr, [class*="rank"], [class*="list"]');
+          const texts: string[] = [];
+          for (const item of items) {
+            const t = item.textContent?.trim() || '';
+            if (t.match(/[가-힣]+\d*동/) && t.length < 80) {
+              texts.push(t.replace(/\s+/g, ' ').slice(0, 60));
+            }
+          }
+          return texts.slice(0, 15);
+        });
+        console.log('[GolmokScraper] Sidebar items:', sidebarItems);
+
+        const rankingClicked = await this.page.evaluate((dongFull: string, dongBase: string) => {
+          const items = document.querySelectorAll('li, tr, [class*="rank"], [class*="list-item"], a');
+
+          // 1차: 전체 동 이름(역삼1동) 정확 매칭
+          if (dongFull) {
+            for (const item of items) {
+              const text = item.textContent?.trim() || '';
+              if (text.includes(dongFull)) {
+                (item as HTMLElement).click();
+                return `exact: ${text.slice(0, 60)}`;
+              }
+            }
+          }
+
+          // 2차: 숫자 없는 동만 베이스 매칭 (청담동, 신사동 등)
+          if (dongBase && !dongFull.match(/\d/)) {
+            for (const item of items) {
+              const text = item.textContent?.trim() || '';
+              if (text.includes(dongBase + '동')) {
+                (item as HTMLElement).click();
+                return `base: ${text.slice(0, 60)}`;
+              }
+            }
+          }
+
+          return null;
+        }, targetDongFull, targetDongBase);
+
+        if (rankingClicked) {
+          console.log(`[GolmokScraper] Clicked ranking: ${rankingClicked}`);
+          await this.delay(3000);
+          await this.clickReportButton();
+          await this.delay(3000);
+          sidebarData = await this.extractReportData();
+          if (sidebarData?.report?.dongName) {
+            console.log(`[GolmokScraper] Report extracted: dongName="${sidebarData.report.dongName}"`);
+            reportFound = true;
+          }
+        }
+      }
+
+      // --- 전략 3: 지도를 강남구 쪽으로 이동 후 재검색 ---
+      if (!reportFound) {
+        console.log('[GolmokScraper] Strategy 3: Pan map toward Gangnam and retry...');
+
+        // 지도 영역 찾기
+        const mapContainer = await this.page.$('#map, [class*="map"], .kakao, [id*="map"]');
+        if (mapContainer) {
+          const mapBox = await mapContainer.boundingBox();
+          if (mapBox) {
+            // 지도 중심에서 남동쪽으로 드래그 (강남구 방향 = 서울 남쪽)
+            const centerX = mapBox.x + mapBox.width / 2;
+            const centerY = mapBox.y + mapBox.height / 2;
+
+            console.log(`[GolmokScraper] Map container: ${mapBox.width}x${mapBox.height} at (${mapBox.x},${mapBox.y})`);
+
+            // 지도 줌인 (강남구에 포커스)
+            console.log('[GolmokScraper] Zooming into map...');
+            for (let i = 0; i < 3; i++) {
+              await this.page.mouse.click(centerX, centerY);
+              await this.delay(300);
+              await this.page.mouse.click(centerX, centerY);
+              await this.delay(500);
+            }
+            await this.delay(2000);
+
+            // 지도를 위로 드래그 (남쪽 = 강남 방향으로 이동)
+            console.log('[GolmokScraper] Panning map south (toward Gangnam)...');
+            await this.page.mouse.move(centerX, centerY);
+            await this.page.mouse.down();
+            await this.page.mouse.move(centerX, centerY - 150, { steps: 10 });
+            await this.page.mouse.up();
+            await this.delay(3000);
+
+            await this.page.screenshot({ path: 'debug_5_panned_map.png' });
+
+            // 이동 후 DOM 재검색
+            const retryResult = await this.page.evaluate((dongFull: string) => {
+              const candidates: { el: HTMLElement; textLen: number; childCount: number }[] = [];
+              const allElements = document.querySelectorAll('*');
+              for (const el of allElements) {
+                const text = el.textContent?.trim() || '';
+                if (text.includes(dongFull) && text.length < 100) {
+                  candidates.push({ el: el as HTMLElement, textLen: text.length, childCount: el.children.length });
+                }
+              }
+              candidates.sort((a, b) => a.childCount - b.childCount || a.textLen - b.textLen);
+              if (candidates.length > 0) {
+                candidates[0].el.click();
+                return candidates[0].el.textContent?.trim().slice(0, 50);
+              }
+              return null;
+            }, targetDongFull);
+
+            if (retryResult) {
+              console.log(`[GolmokScraper] Found after pan: "${retryResult}"`);
+              await this.delay(3000);
+              await this.clickReportButton();
+              await this.delay(3000);
+              sidebarData = await this.extractReportData();
+              if (sidebarData?.report?.dongName) {
+                reportFound = true;
+              }
+            }
+          }
+        }
+      }
+
+      // --- 전략 4 (fallback): 사이드바에서 아무 동이라도 클릭 ---
+      if (!reportFound) {
+        console.log('[GolmokScraper] Strategy 4: Fallback - click any ranking item...');
+        const fallbackClicked = await this.page.evaluate(() => {
+          const items = document.querySelectorAll('li, tr, [class*="rank"], [class*="list-item"], a');
+          for (const item of items) {
+            const text = item.textContent?.trim() || '';
+            if (text.match(/\d[가-힣]+\d*동[\d,]+개/)) {
+              (item as HTMLElement).click();
+              return text.slice(0, 60);
+            }
+          }
+          return null;
+        });
+        if (fallbackClicked) {
+          console.log(`[GolmokScraper] Fallback clicked: "${fallbackClicked}"`);
+          await this.delay(3000);
+          await this.clickReportButton();
+          await this.delay(3000);
+          sidebarData = await this.extractReportData();
+          if (sidebarData?.report?.dongName) reportFound = true;
+        }
+      }
+
+      await this.page.screenshot({ path: 'debug_3b_ranking_click.png' });
+
+      // 6. 위 전략들이 모두 실패한 경우 지도 좌표 클릭 fallback
+      if (!reportFound) {
+        console.log('[GolmokScraper] All strategies failed, falling back to map coordinate clicks...');
+
+        const clickPositions = [
+          { x: 950, y: 400, name: '중앙 원' },
+          { x: 1050, y: 350, name: '오른쪽 상단 원' },
+          { x: 850, y: 450, name: '왼쪽 하단 원' },
+          { x: 1100, y: 500, name: '오른쪽 하단 원' },
+        ];
+
+        for (const pos of clickPositions) {
+          console.log(`[GolmokScraper] Clicking ${pos.name} at (${pos.x}, ${pos.y})...`);
+          await this.page.mouse.click(pos.x, pos.y);
+          await this.delay(3000);
 
         // 분석리포트 패널에서 데이터 추출
         sidebarData = await this.page.evaluate(() => {
@@ -443,17 +897,76 @@ export class GolmokScraper {
               .filter((b: string) => b.length > 10);
           }
 
-          // 점포수 변화 추출: "전분기 대비 +2개" 또는 "-3개"
-          const storeChangeMatch = panelText.match(/점포수[\s\S]*?전분기\s*대비\s*([+\-]?\d+[\d,]*\s*개)/);
-          if (storeChangeMatch) data.report.storeChange = storeChangeMatch[1];
+          // 점포수/매출액/유동인구 변화 추출
+          // ::before 또는 CSS 클래스로 부호를 렌더링하므로 다중 전략 사용
+          function readDiff(spanId: string, unit: string): string | null {
+            const span = document.getElementById(spanId);
+            if (!span) return null;
+            const num = span.textContent?.trim();
+            if (!num) return null;
+            let sign = '';
+            // 전략1: span~조상 순회하며 ::before/::after content
+            let el: Element | null = span;
+            for (let d = 0; el && d < 5; d++) {
+              try {
+                for (const ps of ['::before', '::after'] as const) {
+                  const ct = window.getComputedStyle(el, ps).getPropertyValue('content');
+                  if (ct && ct !== 'none' && ct !== 'normal' && ct !== '""' && ct !== "''") {
+                    const s = ct.replace(/['"]/g, '').trim();
+                    if (/^[－\-−–]$/.test(s)) { sign = '-'; break; }
+                    if (/^[+＋]$/.test(s)) { sign = '+'; break; }
+                  }
+                }
+              } catch (e) {}
+              if (sign) break;
+              el = el.parentElement;
+            }
+            // 전략2: CSS 클래스명
+            if (!sign) {
+              let ce: Element | null = span;
+              for (let d = 0; ce && d < 5; d++) {
+                const cls = ce.className?.toString().toLowerCase() || '';
+                if (/minus|decrease|down|negative|red/.test(cls)) { sign = '-'; break; }
+                if (/plus|increase|up|positive|blue/.test(cls)) { sign = '+'; break; }
+                ce = ce.parentElement;
+              }
+            }
+            // 전략3: 색상 판별
+            if (!sign) {
+              let ce2: Element | null = span;
+              for (let d = 0; ce2 && d < 3; d++) {
+                try {
+                  const rgb = window.getComputedStyle(ce2).color.match(/(\d+)/g);
+                  if (rgb) {
+                    const r = +rgb[0], g = +rgb[1], b = +rgb[2];
+                    if (r > 150 && g < 100) { sign = '-'; break; }
+                    if (b > 150 && r < 100) { sign = '+'; break; }
+                  }
+                } catch (e) {}
+                ce2 = ce2.parentElement;
+              }
+            }
+            return `${sign}${num}${unit}`;
+          }
+          const storeDiff = readDiff('storCoQuDiff', '개');
+          const salesDiff = readDiff('salCoQuDiff', '만원');
+          const popDiff = readDiff('popCoQuDiff', '명');
 
-          // 매출액 변화 추출: "전분기 대비 +132만원"
-          const salesChangeMatch = panelText.match(/매출액[\s\S]*?전분기\s*대비\s*([+\-]?[\d,]+\s*만원)/);
-          if (salesChangeMatch) data.report.salesChange = salesChangeMatch[1];
-
-          // 유동인구 변화 추출: "전분기 대비 +4,034명"
-          const popChangeMatch = panelText.match(/유동인구[\s\S]*?전분기\s*대비\s*([+\-]?[\d,]+\s*명)/);
-          if (popChangeMatch) data.report.populationChange = popChangeMatch[1];
+          if (storeDiff) data.report.storeChange = storeDiff;
+          else {
+            const m = panelText.match(/점포수[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*\d+[\d,]*\s*개)/);
+            if (m) data.report.storeChange = m[1];
+          }
+          if (salesDiff) data.report.salesChange = salesDiff;
+          else {
+            const m = panelText.match(/매출액[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*[\d,]+\s*만원)/);
+            if (m) data.report.salesChange = m[1];
+          }
+          if (popDiff) data.report.populationChange = popDiff;
+          else {
+            const m = panelText.match(/유동인구[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*[\d,]+\s*명)/);
+            if (m) data.report.populationChange = m[1];
+          }
 
           // 순위 정보 추출: "점포수는 9위, 매출액 20위, 유동인구 2위"
           const rankMatch = panelText.match(/(\d+)개\s*중[^점]*점포수[는은]\s*(\d+)위[,\s]*매출액?\s*(\d+)위[,\s]*유동인구\s*(\d+)위/);
@@ -530,17 +1043,76 @@ export class GolmokScraper {
           const quarterMatch = text.match(/기준분기\s+(\d{4}년\s*\d분기)/);
           if (quarterMatch) data.report.quarter = quarterMatch[1];
 
-          // 점포수 변화
-          const storeChangeMatch = text.match(/점포수[\s\S]*?전분기\s*대비\s*([+\-]?\d+[\d,]*\s*개)/);
-          if (storeChangeMatch) data.report.storeChange = storeChangeMatch[1];
+          // 점포수/매출액/유동인구 변화 추출
+          // ::before 또는 CSS 클래스로 부호를 렌더링하므로 다중 전략 사용
+          function readDiff(spanId: string, unit: string): string | null {
+            const span = document.getElementById(spanId);
+            if (!span) return null;
+            const num = span.textContent?.trim();
+            if (!num) return null;
+            let sign = '';
+            // 전략1: span~조상 순회 ::before/::after
+            let el: Element | null = span;
+            for (let d = 0; el && d < 5; d++) {
+              try {
+                for (const ps of ['::before', '::after'] as const) {
+                  const ct = window.getComputedStyle(el, ps).getPropertyValue('content');
+                  if (ct && ct !== 'none' && ct !== 'normal' && ct !== '""' && ct !== "''") {
+                    const s = ct.replace(/['"]/g, '').trim();
+                    if (/^[－\-−–]$/.test(s)) { sign = '-'; break; }
+                    if (/^[+＋]$/.test(s)) { sign = '+'; break; }
+                  }
+                }
+              } catch (e) {}
+              if (sign) break;
+              el = el.parentElement;
+            }
+            // 전략2: CSS 클래스명
+            if (!sign) {
+              let ce: Element | null = span;
+              for (let d = 0; ce && d < 5; d++) {
+                const cls = ce.className?.toString().toLowerCase() || '';
+                if (/minus|decrease|down|negative|red/.test(cls)) { sign = '-'; break; }
+                if (/plus|increase|up|positive|blue/.test(cls)) { sign = '+'; break; }
+                ce = ce.parentElement;
+              }
+            }
+            // 전략3: 색상 판별
+            if (!sign) {
+              let ce2: Element | null = span;
+              for (let d = 0; ce2 && d < 3; d++) {
+                try {
+                  const rgb = window.getComputedStyle(ce2).color.match(/(\d+)/g);
+                  if (rgb) {
+                    const r = +rgb[0], g = +rgb[1], b = +rgb[2];
+                    if (r > 150 && g < 100) { sign = '-'; break; }
+                    if (b > 150 && r < 100) { sign = '+'; break; }
+                  }
+                } catch (e) {}
+                ce2 = ce2.parentElement;
+              }
+            }
+            return `${sign}${num}${unit}`;
+          }
+          const storeDiff = readDiff('storCoQuDiff', '개');
+          const salesDiff = readDiff('salCoQuDiff', '만원');
+          const popDiff = readDiff('popCoQuDiff', '명');
 
-          // 매출액 변화
-          const salesChangeMatch = text.match(/매출액[\s\S]*?전분기\s*대비\s*([+\-]?[\d,]+\s*만원)/);
-          if (salesChangeMatch) data.report.salesChange = salesChangeMatch[1];
-
-          // 유동인구 변화
-          const popChangeMatch = text.match(/유동인구[\s\S]*?전분기\s*대비\s*([+\-]?[\d,]+\s*명)/);
-          if (popChangeMatch) data.report.populationChange = popChangeMatch[1];
+          if (storeDiff) data.report.storeChange = storeDiff;
+          else {
+            const m = text.match(/점포수[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*\d+[\d,]*\s*개)/);
+            if (m) data.report.storeChange = m[1];
+          }
+          if (salesDiff) data.report.salesChange = salesDiff;
+          else {
+            const m = text.match(/매출액[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*[\d,]+\s*만원)/);
+            if (m) data.report.salesChange = m[1];
+          }
+          if (popDiff) data.report.populationChange = popDiff;
+          else {
+            const m = text.match(/유동인구[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*[\d,]+\s*명)/);
+            if (m) data.report.populationChange = m[1];
+          }
 
           return data.report.dongName ? data : null;
         });
@@ -550,7 +1122,8 @@ export class GolmokScraper {
           reportFound = true;
           break;
         }
-      }
+        }
+      } // end if (!reportFound)
 
       // 분석리포트 데이터를 result에 저장
       if (sidebarData) {
@@ -602,6 +1175,7 @@ export class GolmokScraper {
       // === 확장 데이터 추출: 각 탭 순회 ===
       if (reportFound) {
         console.log('[GolmokScraper] Extracting extended data from report tabs...');
+        onProgress?.(60, '기본 데이터 추출 완료, 상세 분석 탭 순회 중...');
         const extendedData = await this.scrapeReportTabs();
 
         if (extendedData && result.report) {
@@ -711,6 +1285,7 @@ export class GolmokScraper {
         Object.assign(result, data);
       }
       result.success = true;
+      onProgress?.(90, '분석 완료, 결과 정리 중...');
 
       // 6. 최종 스크린샷 저장
       const screenshotPath = `golmok_result_${Date.now()}.png`;
@@ -718,6 +1293,7 @@ export class GolmokScraper {
       result.screenshotPath = screenshotPath;
 
       console.log('[GolmokScraper] Analysis complete');
+      onProgress?.(100, '분석 완료');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('[GolmokScraper] Error:', message);
@@ -1256,6 +1832,247 @@ export class GolmokScraper {
     }
 
     console.log('[GolmokScraper] Extracted data keys:', Object.keys(result));
+    return result;
+  }
+
+  /** 현재 페이지에서 분석리포트 데이터를 추출하는 공통 헬퍼 */
+  /**
+   * "간략 보고서" 또는 "분석리포트" 버튼을 클릭하여 보고서 패널을 엽니다.
+   */
+  private async clickReportButton(): Promise<void> {
+    if (!this.page) return;
+    const result = await this.page.evaluate(() => {
+      const btns = document.querySelectorAll('button, a, [class*="btn"]');
+      // 우선 "간략 보고서" → "분석리포트" 순서
+      for (const btn of btns) {
+        const text = btn.textContent?.trim() || '';
+        if (text === '간략 보고서' || text === '간략보고서') {
+          (btn as HTMLElement).click();
+          return `clicked: "${text}"`;
+        }
+      }
+      for (const btn of btns) {
+        const text = btn.textContent?.trim() || '';
+        if (text === '분석리포트') {
+          (btn as HTMLElement).click();
+          return `clicked: "${text}"`;
+        }
+      }
+      return null;
+    });
+    if (result) {
+      console.log(`[GolmokScraper] Report button: ${result}`);
+    }
+  }
+
+  private async extractReportData(): Promise<any> {
+    if (!this.page) return null;
+
+    const result = await this.page.evaluate(() => {
+      const data: any = {
+        report: {
+          dongName: '',
+          businessType: '',
+          quarter: '',
+          summary: [] as string[],
+          storeChange: '',
+          salesChange: '',
+          populationChange: '',
+          ranking: null as any,
+        },
+        rawText: '',
+        rankingData: [] as Array<{ rank: number; dong: string; count: number }>,
+        _debug: {} as any,
+      };
+
+      const text = document.body.innerText || '';
+      data.rawText = text;
+
+      // 보고서 패널 찾기 - 여러 셀렉터 시도
+      const panelSelectors = [
+        '.report_wrap',
+        '.report-panel',
+        '[class*="report_cont"]',
+        '[class*="report-content"]',
+        '[class*="reportWrap"]',
+        '#reportArea',
+        '[class*="analysis_report"]',
+        '[class*="detail-panel"]',
+        '[class*="report"]',
+      ];
+      let reportPanel: Element | null = null;
+      let panelSelector = '';
+      for (const sel of panelSelectors) {
+        const el = document.querySelector(sel);
+        if (el && el.textContent && el.textContent.trim().length > 50) {
+          reportPanel = el;
+          panelSelector = sel;
+          break;
+        }
+      }
+
+      const panelText = reportPanel?.textContent || '';
+      data._debug.panelFound = !!reportPanel;
+      data._debug.panelSelector = panelSelector;
+      data._debug.panelTextLen = panelText.length;
+      // 패널 텍스트 앞부분 200자 디버그
+      data._debug.panelTextPreview = panelText.slice(0, 200).replace(/\s+/g, ' ');
+
+      // 보고서 패널이 없거나 비어있으면, 전체 텍스트에서 "간략보고서" 관련 섹션 추출 시도
+      const searchText = panelText.length > 100 ? panelText : text;
+
+      // 위치 (동 이름) 추출: "위치 역삼1동" 또는 "위치\n역삼1동"
+      const locationMatch = searchText.match(/위치\s*[:\s]*([가-힣0-9]+동)/);
+      if (locationMatch) data.report.dongName = locationMatch[1];
+
+      // 업종 추출: "업종 업종전체" 또는 "업종 한식음식점"
+      const businessMatch = searchText.match(/업종\s*[:\s]*([가-힣]+(?:전체)?)/);
+      if (businessMatch) data.report.businessType = businessMatch[1];
+
+      // 기준분기 추출: "기준분기 2025년 3분기"
+      const quarterMatch = searchText.match(/기준분기\s*[:\s]*(\d{4}년\s*\d분기)/);
+      if (quarterMatch) data.report.quarter = quarterMatch[1];
+
+      // 종합의견 추출
+      const summarySection = searchText.match(/종합의견([\s\S]*?)(?=점포수|업종분석|$)/);
+      if (summarySection) {
+        const bullets = summarySection[1].split(/[•·\n]/);
+        data.report.summary = bullets
+          .map((b: string) => b.trim())
+          .filter((b: string) => b.length > 10);
+      }
+
+      // 점포수/매출액/유동인구 변화
+      // 사이트가 ::before 의사요소로 부호(+/-)를 렌더링하므로 textContent에 부호가 없음
+      // → span ID로 직접 접근 + getComputedStyle로 ::before content 읽기
+
+      /** span ID에서 숫자 + ::before 부호를 결합하여 변화값 추출 */
+      function readChangeFromSpan(spanId: string, unit: string): string | null {
+        const span = document.getElementById(spanId);
+        if (!span) { console.log(`[readChange] span#${spanId} not found`); return null; }
+        const num = span.textContent?.trim() || '';
+        if (!num) { console.log(`[readChange] span#${spanId} empty text`); return null; }
+
+        let sign = '';
+
+        // 전략 1: span 자체 + 모든 조상을 순회하며 ::before / ::after content 확인
+        let el: Element | null = span;
+        for (let depth = 0; el && depth < 5; depth++) {
+          try {
+            for (const pseudo of ['::before', '::after'] as const) {
+              const style = window.getComputedStyle(el, pseudo);
+              const content = style.getPropertyValue('content');
+              if (content && content !== 'none' && content !== 'normal' && content !== '""' && content !== "''") {
+                const clean = content.replace(/['"]/g, '').trim();
+                console.log(`[readChange] ${spanId} depth=${depth} ${pseudo} content="${clean}"`);
+                if (/^[－\-−–]$/.test(clean)) { sign = '-'; break; }
+                if (/^[+＋]$/.test(clean)) { sign = '+'; break; }
+              }
+            }
+          } catch (e) {}
+          if (sign) break;
+          el = el.parentElement;
+        }
+
+        // 전략 2: CSS 클래스명에서 부호 키워드 탐색
+        if (!sign) {
+          let checkEl: Element | null = span;
+          for (let depth = 0; checkEl && depth < 5; depth++) {
+            const cls = checkEl.className?.toString().toLowerCase() || '';
+            console.log(`[readChange] ${spanId} depth=${depth} class="${cls}"`);
+            if (/minus|decrease|down|negative|red/.test(cls)) { sign = '-'; break; }
+            if (/plus|increase|up|positive|blue/.test(cls)) { sign = '+'; break; }
+            checkEl = checkEl.parentElement;
+          }
+        }
+
+        // 전략 3: 색상으로 판별 (빨강/분홍=감소, 파랑=증가)
+        if (!sign) {
+          let colorEl: Element | null = span;
+          for (let depth = 0; colorEl && depth < 3; depth++) {
+            try {
+              const color = window.getComputedStyle(colorEl).color;
+              const rgb = color.match(/(\d+)/g);
+              if (rgb && rgb.length >= 3) {
+                const r = +rgb[0], g = +rgb[1], b = +rgb[2];
+                console.log(`[readChange] ${spanId} depth=${depth} color rgb(${r},${g},${b})`);
+                if (r > 150 && g < 100) { sign = '-'; break; }
+                if (b > 150 && r < 100) { sign = '+'; break; }
+              }
+            } catch (e) {}
+            colorEl = colorEl.parentElement;
+          }
+        }
+
+        console.log(`[readChange] ${spanId} => sign="${sign}" num="${num}" => "${sign}${num}${unit}"`);
+        return `${sign}${num}${unit}`;
+      }
+
+      // ID 패턴: storCoQuDiff(점포수), salCoQuDiff(매출액), popCoQuDiff(유동인구)
+      const storeFromSpan = readChangeFromSpan('storCoQuDiff', '개');
+      const salesFromSpan = readChangeFromSpan('salCoQuDiff', '만원');
+      const popFromSpan = readChangeFromSpan('popCoQuDiff', '명');
+
+      if (storeFromSpan) {
+        data.report.storeChange = storeFromSpan;
+      } else {
+        const m = searchText.match(/점포수[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*[\d,]+\s*개)/);
+        if (m) data.report.storeChange = m[1];
+      }
+
+      if (salesFromSpan) {
+        data.report.salesChange = salesFromSpan;
+      } else {
+        const m = searchText.match(/매출액[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*[\d,]+\s*만원)/);
+        if (m) data.report.salesChange = m[1];
+      }
+
+      if (popFromSpan) {
+        data.report.populationChange = popFromSpan;
+      } else {
+        const m = searchText.match(/유동인구[\s\S]*?전분기\s*대비\s*([+\-－−–]?\s*[\d,]+\s*명)/);
+        if (m) data.report.populationChange = m[1];
+      }
+
+      // 순위 정보 추출
+      const rankMatch = searchText.match(/(\d+)개\s*중[^점]*점포수[는은]\s*(\d+)위[,\s]*매출액?\s*(\d+)위[,\s]*유동인구\s*(\d+)위/);
+      if (rankMatch) {
+        data.report.ranking = {
+          totalDongs: parseInt(rankMatch[1], 10),
+          storeRank: parseInt(rankMatch[2], 10),
+          salesRank: parseInt(rankMatch[3], 10),
+          populationRank: parseInt(rankMatch[4], 10),
+        };
+      }
+
+      const hasReport = data.report.dongName || data.report.storeChange || data.report.summary.length > 0;
+      return hasReport ? data : null;
+    });
+
+    // 디버그 로그 출력
+    if (result) {
+      console.log(`[GolmokScraper] extractReportData: found=${!!result}, dong="${result.report?.dongName}", panel=${result._debug?.panelSelector || 'none'}, panelLen=${result._debug?.panelTextLen}`);
+      console.log(`[GolmokScraper] Panel preview: "${result._debug?.panelTextPreview?.slice(0, 100)}"`);
+      delete result._debug; // 디버그 정보 제거
+    } else {
+      console.log('[GolmokScraper] extractReportData: returned null (no data found)');
+      // 추가 디버그: 페이지에 보고서 관련 키워드가 있는지 확인
+      const debugKeywords = await this.page!.evaluate(() => {
+        const text = document.body.innerText || '';
+        return {
+          has위치: text.includes('위치'),
+          has업종: text.includes('업종'),
+          has기준분기: text.includes('기준분기'),
+          has종합의견: text.includes('종합의견'),
+          has점포수: text.includes('점포수'),
+          has전분기: text.includes('전분기'),
+          bodyLen: text.length,
+          first300: text.slice(0, 300).replace(/\s+/g, ' '),
+        };
+      });
+      console.log('[GolmokScraper] Page keywords:', JSON.stringify(debugKeywords));
+    }
+
     return result;
   }
 
@@ -1916,5 +2733,3 @@ async function main() {
 }
 
 main().catch(console.error);
-
-export type { GolmokAnalysisRequest, GolmokAnalysisResult };

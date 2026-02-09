@@ -261,9 +261,29 @@ export interface CategoryNode {
 // Navigation Types
 export type MainTab = 'HOME' | 'LISTINGS' | 'QUOTE' | 'CONSULTING' | 'MORE' | 'FAQ'; // [Updated] Added FAQ
 
-export type AppStep = 
+export type AppStep =
   | 'TAB_VIEW' // Shows the main tabs
   | 'SPACE_INPUT' // Wizard Flow
   | 'PLANNER'
   | 'QUOTE_GEN'
   | 'CONSULTING_WIZARD'; // Overlay Flow
+
+// --- Golmok (골목상권) Live Analysis Types ---
+
+export interface GolmokScrapeRequest {
+  address: string;
+  businessCategory: '외식업' | '서비스업' | '소매업' | '전체';
+  lat?: number;
+  lon?: number;
+}
+
+export type GolmokJobStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+
+export interface GolmokJobResponse {
+  jobId: string;
+  status: GolmokJobStatus;
+  progress: number;       // 0~100
+  message?: string;        // 현재 단계 메시지
+  result?: any;            // GolmokAnalysisResult (완료 시)
+  error?: string;          // 에러 메시지 (실패 시)
+}

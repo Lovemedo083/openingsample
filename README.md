@@ -57,6 +57,7 @@ npm run dev
 | 3D 가구 에셋 | `http://localhost:3000/furniture.html` | 사진 → 3D 가구 모델 생성 |
 | 골목상권분석 | `http://localhost:3000/commerce.html` | 위치 기반 상권 분석 보고서 |
 | 골목상권 보고서 | `http://localhost:3000/commerce-report.html` | 스크래핑 데이터 기반 심층 보고서 |
+| 골목상권 실시간 분석 | `http://localhost:3000/golmok-live.html` | 웹 UI에서 동네/업종 선택 → 실시간 스크래핑 → 보고서 |
 
 ---
 
@@ -296,6 +297,75 @@ npm run scrape:golmok
 
 ---
 
+## 기능 6: 골목상권 실시간 분석
+
+> **접속:** `http://localhost:3000/golmok-live.html`
+>
+> **데이터 소스:** golmok.seoul.go.kr (Puppeteer 실시간 스크래핑)
+>
+> **필요 사항:** Node.js, Puppeteer (npm install 시 자동 설치)
+
+웹 UI에서 동네와 업종을 선택하면 서버가 골목상권 스크래퍼를 실시간으로 실행하여 분석 보고서를 생성·표시하는 기능입니다. CLI 없이 브라우저에서 바로 사용할 수 있습니다.
+
+### 사용 방법
+
+**Step 1 - 동네 선택**
+
+- 강남구 내 11개 행정동 중 분석할 동네를 선택합니다.
+  - 역삼1동, 역삼2동, 논현1동, 논현2동, 청담동, 압구정동, 신사동, 대치1동, 대치2동, 삼성1동, 삼성2동
+
+**Step 2 - 업종 선택**
+
+- 분석할 업종 카테고리를 선택합니다:
+  - 외식업 / 서비스업 / 소매업 / 전체
+
+**Step 3 - 분석 실행**
+
+- "분석 시작" 버튼을 클릭하면 서버에서 Puppeteer 스크래퍼가 실행됩니다.
+- 약 30~60초 소요되며, 진행률이 프로그레스 바로 실시간 표시됩니다.
+- 진행 단계: 사이트 접속 → 필터 설정 → 지도 데이터 로딩 → 기본 데이터 추출 → 상세 분석 탭 순회 → 결과 정리
+
+**Step 4 - 보고서 확인**
+
+생성되는 보고서에 포함되는 항목:
+
+| 항목 | 설명 |
+|------|------|
+| **리스크 등급** | LOW / MEDIUM / HIGH 배지 |
+| **종합 점수** | 0~100점 게이지 |
+| **3대 지표** | 점포 수·매출·유동인구 전분기 대비 변화 (CSS `::before` 부호 포함) |
+| **종합 현황** | 상권 요약 분석 |
+| **업종 분석** | 생존율, 개·폐업, 프랜차이즈 비율 |
+| **매출 분석** | 월평균 매출, 주중/주말, 피크 시간대 |
+| **유동인구 분석** | 총 유동인구, 성별, 피크 시간대 |
+| **지역 분석** | 임대료, 상업 밀도, 주거/상업 비율 |
+| **전문가 추천** | 상권 동향 기반 전략 5가지 |
+
+**Step 5 - 내보내기**
+
+- **"텍스트 복사"** : 보고서를 클립보드에 복사
+- **"HTML 다운로드"** : 스타일 포함 HTML 파일 다운로드
+- **"다시 분석하기"** : 다른 동네/업종으로 새 분석 시작
+
+### 구조
+
+```
+[브라우저]                         [Vite 서버 미들웨어]
+동네·업종 선택 → "분석 시작"        POST /api/golmok/scrape → jobId 반환
+  ↓ 3초 간격 폴링                    ↓ Puppeteer 스크래퍼 실행
+GET /api/golmok/status/:jobId       진행률·결과 반환
+  ↓                                   ↓
+프로그레스 바 → 보고서 표시          extractReportData + 탭 순회
+```
+
+### 제한 사항
+
+- 동시에 1건의 스크래핑만 실행 가능합니다 (중복 요청 시 429 반환).
+- 현재 강남구 행정동만 지원합니다.
+- golmok.seoul.go.kr 사이트 장애 시 스크래핑이 실패할 수 있습니다.
+
+---
+
 ## 빌드 및 배포
 
 ```bash
@@ -306,7 +376,7 @@ npm run build
 npm run preview
 ```
 
-빌드 결과물은 `dist/` 폴더에 생성되며, 각 페이지(index, scanner, furniture, commerce, commerce-report)가 개별 번들로 출력됩니다.
+빌드 결과물은 `dist/` 폴더에 생성되며, 각 페이지(index, scanner, furniture, commerce, commerce-report, golmok-live)가 개별 번들로 출력됩니다.
 
 ---
 
@@ -319,4 +389,5 @@ npm run preview
 | 백엔드 | Supabase (Auth, PostgreSQL, Storage) |
 | 스타일링 | Tailwind CSS (CDN) |
 | 차트 | Recharts (상권분석 보고서) |
+| 웹 스크래핑 | Puppeteer (골목상권 실시간 분석) |
 | 외부 API | World Labs Marble, Segmind SAM 3D, 공공데이터포털, Kakao REST |

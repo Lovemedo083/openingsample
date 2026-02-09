@@ -92,9 +92,10 @@ export interface ReportMetric {
 
 function parseChange(changeStr: string): { value: number; isPositive: boolean } {
   if (!changeStr) return { value: 0, isPositive: true };
-  const match = changeStr.match(/([+\-]?)([\d,]+)/);
+  const match = changeStr.match(/([+\-－−–]?)\s*([\d,]+)/);
   if (!match) return { value: 0, isPositive: true };
-  const isPositive = match[1] !== '-';
+  const sign = match[1];
+  const isPositive = sign !== '-' && sign !== '－' && sign !== '−' && sign !== '–';
   const value = parseInt(match[2].replace(/,/g, ''), 10);
   return { value, isPositive };
 }
@@ -260,10 +261,32 @@ export function generateGolmokReport(data: GolmokReportData): GeneratedReport {
   const sections: ReportSection[] = [];
 
   // 1. 종합 현황
+  const summaryContent = data.summary.filter(s => s.length > 0);
+  // summary가 비어있으면 기본 요약 텍스트 자동 생성
+  if (summaryContent.length === 0) {
+    summaryContent.push(
+      `${data.dongName} 지역의 ${data.businessType || '업종전체'} 상권분석 결과입니다 (${data.quarter} 기준).`
+    );
+    if (data.storeChange) {
+      summaryContent.push(
+        `전분기 대비 점포수가 ${data.storeChange} ${storeChange.isPositive ? '증가' : '감소'}했습니다.`
+      );
+    }
+    if (data.salesChange) {
+      summaryContent.push(
+        `매출액은 전분기 대비 ${data.salesChange} ${salesChange.isPositive ? '상승' : '하락'}했습니다.`
+      );
+    }
+    if (data.populationChange) {
+      summaryContent.push(
+        `유동인구는 전분기 대비 ${data.populationChange} ${popChange.isPositive ? '증가' : '감소'}했습니다.`
+      );
+    }
+  }
   sections.push({
     title: '종합 현황',
     icon: 'chart',
-    content: data.summary.filter(s => s.length > 0),
+    content: summaryContent,
     metrics: [
       {
         label: '점포수 변화',

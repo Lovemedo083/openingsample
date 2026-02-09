@@ -34,5 +34,8 @@ world_api_test/**
 !README.md
 !golmok-example.md 
 
+log/
+log/**
+
 *.png
 
