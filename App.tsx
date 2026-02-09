@@ -39,21 +39,57 @@ function App() {
   // 프로젝트 생성 실패 시 에러 상태
   const [projectError, setProjectError] = useState<string | null>(null);
 
-  // Auth 체크 — onAuthStateChange의 INITIAL_SESSION 이벤트만 사용
-  // (getSession()과 동시 호출 시 Supabase v2.39+ navigator.locks 경합으로 deadlock 발생)
+  // Auth 체크
   useEffect(() => {
-    let sessionHandled = false;
+    let cancelled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user && !sessionHandled) {
-        sessionHandled = true;
-        await handleSession(session);
-        setShowLanding(false);
+    // 1) getSession으로 초기 세션 확인 (타임아웃 포함)
+    const initAuth = async () => {
+      console.log('[Auth] initAuth start');
+      try {
+        const result = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<{ data: { session: null } }>((resolve) =>
+            setTimeout(() => { console.log('[Auth] getSession timeout'); resolve({ data: { session: null } }); }, 4000)
+          )
+        ]);
+        if (cancelled) return;
+        const session = result.data.session;
+        console.log('[Auth] getSession result:', session ? 'session found' : 'no session');
+        if (session?.user) {
+          await handleSession(session);
+          setShowLanding(false);
+        }
+      } catch (e) {
+        console.error('[Auth] initAuth error:', e);
       }
-      setIsAuthChecking(false);
+      if (!cancelled) {
+        console.log('[Auth] setIsAuthChecking(false)');
+        setIsAuthChecking(false);
+      }
+    };
+    initAuth();
+
+    // 2) 이후 로그인/로그아웃 이벤트 처리 (INITIAL_SESSION은 위에서 처리)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Auth] onAuthStateChange:', event);
+      if (cancelled) return;
+      if (event === 'INITIAL_SESSION') return;
+      if (session?.user && event === 'SIGNED_IN') {
+        setIsDataLoading(true);
+        try {
+          await handleSession(session);
+          setShowLanding(false);
+        } finally {
+          setIsDataLoading(false);
+        }
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSession = async (session: any) => {
@@ -363,6 +399,8 @@ function App() {
               onNavigateToProject={() => setCurrentTab('PROJECT')}
               isGuestMode={!isAuthenticated}
               onLoginRequired={handleLoginRequired}
+              userId={user?.id}
+              userName={user?.name}
             />
           ) : (
             <ServiceJourneyView

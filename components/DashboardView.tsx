@@ -17,6 +17,8 @@ interface DashboardViewProps {
   onNavigateToProject: () => void;
   isGuestMode?: boolean;
   onLoginRequired?: () => void;
+  userId?: string;
+  userName?: string;
 }
 
 interface ProjectDetail {
@@ -86,7 +88,7 @@ const BUSINESS_LABELS: Record<string, { label: string; icon: any; emoji: string 
 // 토스페이먼츠 클라이언트 키 (.env에서 관리)
 const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY || '';
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProject, isGuestMode, onLoginRequired }) => {
+export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProject, isGuestMode, onLoginRequired, userId: propUserId, userName: propUserName }) => {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('사장님');
@@ -136,16 +138,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
 
   const loadUser = async () => {
     if (isGuestMode) { setUserName('게스트'); setCurrentUserId('guest-0'); return; }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || '사장님');
-      setCurrentUserId(user.id);
-
-      // 푸시 알림 배너 표시 여부
-      if (isPushSupported() && !localStorage.getItem('push_banner_dismissed')) {
-        const perm = await getPushPermission();
-        if (perm === 'default') setShowPushBanner(true);
+    // prop으로 전달받은 userId/userName 우선 사용 (getUser() lock 경합 방지)
+    if (propUserId) {
+      setUserName(propUserName || '사장님');
+      setCurrentUserId(propUserId);
+    } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || '사장님');
+        setCurrentUserId(user.id);
       }
+    }
+    // 푸시 알림 배너 표시 여부
+    if (isPushSupported() && !localStorage.getItem('push_banner_dismissed')) {
+      const perm = await getPushPermission();
+      if (perm === 'default') setShowPushBanner(true);
     }
   };
 
@@ -175,14 +182,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
     }
 
     try {
-      // 현재 유저의 프로젝트만 조회
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) { setLoading(false); return; }
+      // prop에서 userId를 받았으면 사용, 없으면 getUser() 호출
+      let authUserId = propUserId;
+      if (!authUserId) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        authUserId = authUser?.id;
+      }
+      if (!authUserId) { setLoading(false); return; }
 
       const { data: rows } = await supabase
         .from('startup_projects')
         .select('*, pm:project_managers(*)')
-        .eq('user_id', authUser.id)
+        .eq('user_id', authUserId)
         .in('status', ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS'])
         .order('created_at', { ascending: false })
         .limit(1);
