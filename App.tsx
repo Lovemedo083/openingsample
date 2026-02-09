@@ -237,6 +237,9 @@ function App() {
 
   // Admin/PM 로그인 (숨김 기능)
   const handleAdminLogin = async (email: string, password: string): Promise<boolean> => {
+    // 만료된 Supabase Auth 세션 클리어 (401 방지)
+    await supabase.auth.signOut();
+
     if (email === 'admin' && password === 'epdlfflalf1!') {
       setIsAdmin(true);
       setIsAuthenticated(true);
