@@ -93,6 +93,8 @@ interface ProjectWithPM {
   current_step: number;
   pm_id: string;
   pm_name?: string;
+  user_name?: string;
+  user_phone?: string;
   created_at: string;
   user_id: string;
 }
@@ -210,14 +212,19 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
   const loadAllProjects = async () => {
     const { data: projects } = await supabase
       .from('startup_projects')
-      .select('*')
+      .select('*, profiles:user_id(name, phone, email, full_name)')
       .order('created_at', { ascending: false });
 
     if (projects) {
-      // PM 이름 매핑
-      const projectsWithPM = projects.map(p => {
+      // PM 이름 + 신청자 이름 매핑
+      const projectsWithPM = projects.map((p: any) => {
         const pm = pms.find(pm => pm.id === p.pm_id);
-        return { ...p, pm_name: pm?.name || '미배정' };
+        return {
+          ...p,
+          pm_name: pm?.name || '미배정',
+          user_name: p.profiles?.full_name || p.profiles?.name || p.profiles?.email?.split('@')[0] || null,
+          user_phone: p.profiles?.phone || null,
+        };
       });
       setAllProjects(projectsWithPM);
     }
@@ -1215,6 +1222,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                               <p className="text-xs text-gray-500">
                                 강남구 {project.location_dong} · {project.store_size}평
                               </p>
+                              {project.user_name && (
+                                <p className="text-xs text-gray-700 font-bold mt-1">
+                                  신청자: {project.user_name}
+                                  {project.user_phone && <span className="text-gray-400 font-normal ml-1">{project.user_phone}</span>}
+                                </p>
+                              )}
                               <p className="text-xs text-brand-600 font-medium mt-1">
                                 담당: {pm?.name || '미배정'}
                               </p>
@@ -1251,6 +1264,19 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                             </button>
                           )}
                         </div>
+                        {/* 신청자 정보 */}
+                        {selectedProjectId && (() => {
+                          const sp = allProjects.find(p => p.id === selectedProjectId);
+                          if (!sp?.user_name) return null;
+                          return (
+                            <div className="flex items-center gap-2 mb-2 text-xs">
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-bold">{sp.user_name}</span>
+                              {sp.user_phone && <span className="text-gray-400">{sp.user_phone}</span>}
+                              <span className="text-gray-300">·</span>
+                              <span className="text-gray-500">{sp.business_category} · 강남구 {sp.location_dong} · {sp.store_size}평</span>
+                            </div>
+                          );
+                        })()}
                         {/* PM 배정 / 단계 변경 */}
                         {selectedProjectId && (() => {
                           const selectedProject = allProjects.find(p => p.id === selectedProjectId);

@@ -225,17 +225,22 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
       setProfileForm(pmData);
     }
 
-    // 담당 프로젝트 로드
+    // 담당 프로젝트 로드 (신청자 정보 포함)
     const { data: projectsData } = await supabase
       .from('startup_projects')
-      .select('*')
+      .select('*, profiles:user_id(name, phone, email, full_name)')
       .eq('pm_id', pmId)
       .order('created_at', { ascending: false });
 
     if (projectsData) {
-      setProjects(projectsData);
-      if (projectsData.length > 0 && !selectedProject) {
-        setSelectedProject(projectsData[0]);
+      const enriched = projectsData.map((p: any) => ({
+        ...p,
+        user_name: p.profiles?.full_name || p.profiles?.name || p.profiles?.email?.split('@')[0] || null,
+        user_phone: p.profiles?.phone || null,
+      }));
+      setProjects(enriched);
+      if (enriched.length > 0 && !selectedProject) {
+        setSelectedProject(enriched[0]);
       }
     }
 
