@@ -39,20 +39,10 @@ function App() {
   // 프로젝트 생성 실패 시 에러 상태
   const [projectError, setProjectError] = useState<string | null>(null);
 
-  // Auth 체크 (중복 호출 방지)
+  // Auth 체크 — onAuthStateChange의 INITIAL_SESSION 이벤트만 사용
+  // (getSession()과 동시 호출 시 Supabase v2.39+ navigator.locks 경합으로 deadlock 발생)
   useEffect(() => {
     let sessionHandled = false;
-
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user && !sessionHandled) {
-        sessionHandled = true;
-        await handleSession(session);
-        setShowLanding(false);
-      }
-      setIsAuthChecking(false);
-    };
-    checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user && !sessionHandled) {
@@ -60,6 +50,7 @@ function App() {
         await handleSession(session);
         setShowLanding(false);
       }
+      setIsAuthChecking(false);
     });
 
     return () => subscription.unsubscribe();
@@ -168,12 +159,13 @@ function App() {
     try {
       // 현재 유저의 프로젝트만 조회
       const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return; // 인증 실패 시 조기 반환
 
       // startup_projects에서 진행중인 프로젝트 수 조회
       const { data: allProjects } = await supabase
         .from('startup_projects')
         .select('id, status')
-        .eq('user_id', authUser?.id)
+        .eq('user_id', authUser.id)
         .order('created_at', { ascending: false });
 
       if (allProjects) {
@@ -186,7 +178,7 @@ function App() {
       const { data: projects } = await supabase
         .from('startup_projects')
         .select('id, status')
-        .eq('user_id', authUser?.id)
+        .eq('user_id', authUser.id)
         .in('status', ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS'])
         .order('created_at', { ascending: false })
         .limit(1);

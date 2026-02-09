@@ -179,15 +179,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) { setLoading(false); return; }
 
-      const { data } = await supabase
+      const { data: rows } = await supabase
         .from('startup_projects')
         .select('*, pm:project_managers(*)')
         .eq('user_id', authUser.id)
         .in('status', ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS'])
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
+      const data = rows?.[0] || null;
       if (data) {
         setProject(data);
         if (data.id) {
@@ -201,6 +201,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
                 .from('project_messages')
                 .select('id')
                 .eq('project_id', data.id)
+                .eq('sender_type', 'SYSTEM')
                 .ilike('message', '%담당 매니저가 배정%')
                 .limit(1);
 
