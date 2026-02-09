@@ -56,8 +56,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onGuestBro
         if (!signupSource) {
           throw new Error('가입 경로를 선택해주세요.');
         }
-        if (password.length < 6) {
-          throw new Error('비밀번호는 6자 이상이어야 합니다.');
+        if (password.length < 8) {
+          throw new Error('비밀번호는 8자 이상이어야 합니다.');
+        }
+        if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+          throw new Error('비밀번호는 영문과 숫자를 모두 포함해야 합니다.');
         }
         // 이메일 인증 리다이렉트 URL - 프로덕션 도메인 사용
         const redirectUrl = window.location.hostname === 'localhost'
@@ -196,7 +199,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onGuestBro
                     <input
                       type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '').slice(0, 11);
+                        const formatted = raw.length <= 3 ? raw : raw.length <= 7 ? `${raw.slice(0,3)}-${raw.slice(3)}` : `${raw.slice(0,3)}-${raw.slice(3,7)}-${raw.slice(7)}`;
+                        setPhone(formatted);
+                      }}
                       className="w-full bg-slate-50 border-none rounded-xl py-3.5 pl-12 pr-4 text-slate-900 font-medium focus:ring-2 focus:ring-brand-500 transition-all placeholder:text-slate-400"
                       placeholder="010-1234-5678"
                       required={isRegister}

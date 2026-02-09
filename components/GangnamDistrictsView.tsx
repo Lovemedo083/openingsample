@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { formatPrice } from '../utils/formatPrice';
 import { Button } from './Components';
 import {
   MapPin, Users, TrendingUp, Clock, Lightbulb, ChevronRight,
@@ -72,14 +73,6 @@ export const GangnamDistrictsView: React.FC = () => {
     setLoading(false);
   };
 
-  const formatPrice = (price: number) => {
-    if (price >= 100000000) {
-      return `${(price / 100000000).toFixed(1)}억`;
-    } else if (price >= 10000) {
-      return `${Math.round(price / 10000)}만`;
-    }
-    return price.toLocaleString();
-  };
 
   // 상세 모달
   const DistrictDetailModal = () => {

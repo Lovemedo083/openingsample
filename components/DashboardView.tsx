@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { formatPrice } from '../utils/formatPrice';
 import { NotificationCenter, createNotification } from './NotificationCenter';
 import { isPushSupported, subscribeToPush, getPushPermission } from '../utils/pushNotifications';
 import {
@@ -497,11 +498,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
     reader.readAsDataURL(file);
   };
 
-  const formatPrice = (price: number) => {
-    if (price >= 100000000) return `${(price / 100000000).toFixed(1)}억`;
-    if (price >= 10000) return `${(price / 10000).toFixed(0)}만`;
-    return `${price}원`;
-  };
 
   if (loading) {
     return (

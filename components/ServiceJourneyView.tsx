@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { formatPriceMan } from '../utils/formatPrice';
 import { Button } from './Components';
 import {
   ChevronRight, ChevronLeft, Store, MapPin, Ruler, Wallet,
@@ -655,14 +656,6 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     setCurrentStep(1);
   };
 
-  const formatPrice = (price: number) => {
-    if (price >= 10000) {
-      return `${(price / 10000).toFixed(0)}억`;
-    } else if (price >= 1000) {
-      return `${(price / 1000).toFixed(1)}천만`;
-    }
-    return `${price}만`;
-  };
 
   const calculateCosts = () => {
     let minTotal = 0;
@@ -720,7 +713,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
     systemMsg += `• 업종: ${category?.label}\n`;
     systemMsg += `• 위치: 강남구 ${dong}\n`;
     systemMsg += `• 규모: ${storeSize}평\n`;
-    systemMsg += `• 예상 비용: ${formatPrice(estimatedCosts.min)} ~ ${formatPrice(estimatedCosts.max)}원\n\n`;
+    systemMsg += `• 예상 비용: ${formatPriceMan(estimatedCosts.min)} ~ ${formatPriceMan(estimatedCosts.max)}원\n\n`;
     if (doneItems.length > 0) systemMsg += `✅ 이미 준비됨: ${doneItems.join(', ')}\n`;
     if (worryItems.length > 0) systemMsg += `⚠️ 도움 필요: ${worryItems.join(', ')}\n`;
 
@@ -1121,7 +1114,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                 <div>
                   <p className="text-sm text-brand-100 mb-1">예상 창업 비용</p>
                   <p className="text-2xl font-bold">
-                    {formatPrice(estimatedCosts.min)} ~ {formatPrice(estimatedCosts.max)}원
+                    {formatPriceMan(estimatedCosts.min)} ~ {formatPriceMan(estimatedCosts.max)}원
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1147,7 +1140,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                   {/* 보증금/권리금 */}
                   <div className="flex items-center justify-between py-2 border-b border-gray-200">
                     <span className="text-gray-600">보증금 + 권리금 (예상)</span>
-                    <span className="font-bold">{formatPrice(storeSize * 300)} ~ {formatPrice(storeSize * 800)}원</span>
+                    <span className="font-bold">{formatPriceMan(storeSize * 300)} ~ {formatPriceMan(storeSize * 800)}원</span>
                   </div>
 
                   {/* 체크리스트 항목별 비용 */}
@@ -1164,7 +1157,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                           )}
                         </div>
                         <span className="font-medium text-gray-800">
-                          {min > 0 ? `${formatPrice(min)} ~ ${formatPrice(max)}원` : '무료'}
+                          {min > 0 ? `${formatPriceMan(min)} ~ ${formatPriceMan(max)}원` : '무료'}
                         </span>
                       </div>
                     );
@@ -1702,7 +1695,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                 <span className="font-bold">예상 총 창업 비용</span>
               </div>
               <div className="text-3xl font-black mb-2">
-                {formatPrice(estimatedCosts.min)} ~ {formatPrice(estimatedCosts.max)}원
+                {formatPriceMan(estimatedCosts.min)} ~ {formatPriceMan(estimatedCosts.max)}원
               </div>
               <p className="text-sm text-brand-100">보증금, 권리금, 시설비 포함</p>
             </div>
@@ -1715,7 +1708,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
               <div className="divide-y">
                 <div className="p-3 flex items-center justify-between">
                   <span className="text-sm text-gray-600">보증금 + 권리금 (예상)</span>
-                  <span className="font-bold text-sm">{formatPrice(storeSize * 300)} ~ {formatPrice(storeSize * 800)}원</span>
+                  <span className="font-bold text-sm">{formatPriceMan(storeSize * 300)} ~ {formatPriceMan(storeSize * 800)}원</span>
                 </div>
                 {checklist.filter(i => i.status !== 'done' && i.estimatedCost.max > 0).map(item => {
                   const isPerPyung = item.estimatedCost.unit.includes('평당');
@@ -1733,7 +1726,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                         )}
                       </div>
                       <span className="font-bold text-sm">
-                        {min > 0 ? `${formatPrice(min)} ~ ${formatPrice(max)}원` : '무료'}
+                        {min > 0 ? `${formatPriceMan(min)} ~ ${formatPriceMan(max)}원` : '무료'}
                       </span>
                     </div>
                   );

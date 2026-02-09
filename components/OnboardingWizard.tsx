@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { formatPrice } from '../utils/formatPrice';
 import { Button } from './Components';
 import {
   ChevronRight, ChevronLeft, Store, MapPin, Ruler, Wallet,
@@ -252,17 +253,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete, 
       calculateCosts();
     }
   }, [step]);
-
-  const formatPrice = (price: number) => {
-    if (price >= 100000000) {
-      return `${(price / 100000000).toFixed(1)}억`;
-    } else if (price >= 10000000) {
-      return `${Math.round(price / 10000000)}천만`;
-    } else if (price >= 10000) {
-      return `${Math.round(price / 10000)}만`;
-    }
-    return price.toLocaleString();
-  };
 
   const canProceed = () => {
     switch (step) {
