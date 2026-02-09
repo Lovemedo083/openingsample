@@ -418,9 +418,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
   };
 
   const loadCustomers = async () => {
-    const { data: authUsers } = await supabase.auth.admin.listUsers();
-
-    // Fallback: Load from profiles table
     const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
 
     if (profiles) {
@@ -1394,7 +1391,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                                 className="flex-1 px-4 py-2 bg-gray-100 rounded-lg text-sm"
                                 value={adminMessage}
                                 onChange={(e) => setAdminMessage(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && sendAdminMessage()}
+                                onKeyDown={(e) => e.key === 'Enter' && sendAdminMessage()}
                               />
                               <Button
                                 onClick={sendAdminMessage}
@@ -1657,7 +1654,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                     placeholder="태그 입력 (예: 카페, 음식점, 인테리어)"
                     value={newSpecialty}
                     onChange={(e) => setNewSpecialty(e.target.value)}
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter' && newSpecialty.trim()) {
                         e.preventDefault();
                         setPMForm({ ...pmForm, specialties: [...(pmForm.specialties || []), newSpecialty.trim()] });

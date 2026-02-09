@@ -394,7 +394,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ projectId, o
                 className="flex-1 px-4 py-3 bg-gray-100 rounded-xl"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
               />
               <button
                 onClick={sendMessage}

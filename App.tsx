@@ -325,9 +325,8 @@ function App() {
           setShowLanding(false);
         }}
         onGuestBrowse={() => {
-          // 게스트 둘러보기 → 대시보드 바로 진입
+          // 게스트 둘러보기 → ServiceJourney 위자드로 진입 (대시보드 아님)
           setUser({ id: `guest-${Date.now()}`, name: '사장님', phone: '', type: 'PHONE', joinedDate: new Date().toLocaleDateString() });
-          setHasActiveProject(true);
           setShowLogin(false);
           setShowLanding(false);
         }}

@@ -257,11 +257,7 @@ export const fetchFurnitureListings = async (category?: string): Promise<Furnitu
 // 7. 가구 매물 상세 조회
 export const fetchFurnitureDetail = async (id: string): Promise<FurnitureListing | null> => {
   // 조회수 증가
-  await supabase
-    .from('furniture_listings')
-    .update({ views: supabase.rpc('increment_views') })
-    .eq('id', id)
-    .catch(() => {});
+  await supabase.rpc('increment_views', { listing_id: id }).catch(() => {});
 
   const { data, error } = await supabase
     .from('furniture_listings')

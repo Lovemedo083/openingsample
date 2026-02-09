@@ -490,6 +490,10 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('이미지는 5MB 이하만 업로드 가능합니다.');
+        return;
+      }
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -1452,7 +1456,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                       className="flex-1 px-4 py-3 bg-gray-100 rounded-xl"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                     />
                     <Button onClick={sendMessage} disabled={sending || (!newMessage.trim() && !selectedImage)}>
                       {sending ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}

@@ -369,7 +369,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         pm:project_managers(*)
       `)
       .eq('user_id', authUser.id)
-      .in('status', ['DRAFT', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE', 'POST_SERVICE'])
+      .in('status', ['DRAFT', 'PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE', 'POST_SERVICE'])
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -569,6 +569,10 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('이미지는 5MB 이하만 업로드 가능합니다.');
+        return;
+      }
       setSelectedImage(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -1297,7 +1301,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
               className="flex-1 px-4 py-3 bg-gray-100 rounded-xl text-sm"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
             />
             <button
               onClick={sendMessage}

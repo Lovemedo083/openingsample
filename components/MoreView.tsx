@@ -116,7 +116,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
 
   // --- Main Menu ---
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50">
       <div className="bg-white p-6 pb-4 border-b border-gray-100">
           <h1 className="text-xl font-bold text-slate-900">더보기</h1>
       </div>

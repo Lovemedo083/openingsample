@@ -33,7 +33,7 @@ export const MyPageView: React.FC<MyPageViewProps> = ({ user, onLogout, consulti
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-slate-50">
       {/* 프로필 헤더 */}
       <div className="bg-white px-4 pt-6 pb-6 border-b border-slate-100">
         <h1 className="text-xl font-bold text-slate-900 mb-5">마이페이지</h1>

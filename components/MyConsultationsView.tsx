@@ -354,7 +354,7 @@ export const MyConsultationsView: React.FC<MyConsultationsViewProps> = ({ bookin
   const waitingCount = bookings.filter(b => b.status === 'PENDING').length;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className="min-h-screen bg-gray-50">
       {/* Header Summary */}
       <div className="bg-white p-6 border-b border-gray-100">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">내 상담</h1>

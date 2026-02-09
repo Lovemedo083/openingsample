@@ -228,7 +228,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, onGuestBro
               <div className="relative group">
                 <Mail className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-brand-500 transition-colors" size={20} />
                 <input
-                  type="text"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-50 border-none rounded-xl py-3.5 pl-12 pr-4 text-slate-900 font-medium focus:ring-2 focus:ring-brand-500 transition-all placeholder:text-slate-400"
