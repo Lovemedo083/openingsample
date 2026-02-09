@@ -181,7 +181,7 @@ function App() {
         .from('startup_projects')
         .select('id, status')
         .eq('user_id', userId)
-        .in('status', ['PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS'])
+        .in('status', ['DRAFT', 'PENDING_PM', 'PM_ASSIGNED', 'IN_PROGRESS', 'PAYMENT_PENDING', 'ACTIVE', 'POST_SERVICE'])
         .order('created_at', { ascending: false })
         .limit(1);
 

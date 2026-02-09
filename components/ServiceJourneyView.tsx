@@ -702,6 +702,13 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
   // 프로젝트 생성 (PENDING_PM 상태로 저장)
   const createProject = async () => {
+    // 이미 프로젝트가 존재하면 중복 생성 방지
+    if (project?.id) {
+      console.log('[ServiceJourney] 이미 프로젝트 존재:', project.id);
+      if (onProjectCreated) onProjectCreated();
+      return;
+    }
+
     setLoading(true);
 
     const worryItems = checklist.filter(i => i.status === 'worry').map(i => i.title);
@@ -789,6 +796,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
       });
     }
 
+    setProject(newProject);
     if (onProjectCreated) onProjectCreated();
     setLoading(false);
   };
@@ -1824,7 +1832,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
             ) : currentStep === 6 ? (
               <>
                 <Rocket size={20} className="mr-2" />
-                {isGuestMode ? '로그인하고 매니저 배정받기' : '매니저 배정 신청하기'}
+                {isGuestMode ? '로그인하고 매니저 배정받기' : project?.id ? '프로젝트 현황 보기' : '매니저 배정 신청하기'}
               </>
             ) : (
               <>
