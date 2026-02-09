@@ -3,7 +3,7 @@ import { supabase } from '../utils/supabaseClient';
 import { Button } from './Components';
 import { createNotification } from './NotificationCenter';
 import {
-  User, Phone, Mail, Camera, Save, LogOut, Briefcase, MessageCircle,
+  User as UserIcon, Phone, Mail, Camera, Save, LogOut, Briefcase, MessageCircle,
   ChevronRight, Check, Clock, Loader2, Send, ArrowRight, X,
   Star, Award, MapPin, Calendar, CheckCircle, AlertTriangle,
   ClipboardList, Building2, ChevronDown, ExternalLink, AlertCircle,
@@ -182,7 +182,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
     category: 'PLANNING',
     description: '',
   });
-  const [showMobileSidebar, setShowMobileSidebar] = useState(true); // 모바일: 사이드바/메인 토글
+  // showMobileSidebar removed - mobile uses top bar instead of sidebar toggle
   const [showPaymentRequestModal, setShowPaymentRequestModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDesc, setPaymentDesc] = useState('계약금');
@@ -787,9 +787,67 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gray-100 flex flex-col md:flex-row">
-      {/* 사이드바 - 프로필 & 프로젝트 목록 */}
-      <aside className={`w-full md:w-80 bg-white border-r flex flex-col ${selectedProject && !showMobileSidebar ? 'hidden md:flex' : 'flex'}`}>
+    <div className="h-[100dvh] bg-gray-100 flex flex-col md:flex-row overflow-hidden">
+      {/* 모바일 상단 바 - PM 프로필 + 프로젝트 선택 */}
+      <div className="md:hidden bg-white border-b shrink-0">
+        {/* PM 헤더 */}
+        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-900 text-white">
+          <div className="flex items-center gap-2.5">
+            <img
+              src={profile?.profile_image || '/favicon-new.png'}
+              alt={profile?.name}
+              className="w-7 h-7 rounded-full object-cover border border-white/30"
+            />
+            <span className="font-bold text-sm">{profile?.name || 'PM'}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setEditingProfile(true)}
+              className="text-xs text-white/70 hover:text-white"
+            >
+              프로필 수정
+            </button>
+            <button
+              onClick={onLogout}
+              className="text-xs text-white/50 hover:text-red-300 flex items-center gap-1"
+            >
+              <LogOut size={12} />
+            </button>
+          </div>
+        </div>
+
+        {/* 프로젝트 선택 필 */}
+        {projects.length > 0 && (
+          <div className="flex gap-2 px-4 py-2.5 overflow-x-auto no-scrollbar bg-slate-50">
+            {projects.map(project => {
+              const isSelected = selectedProject?.id === project.id;
+              const worryCount = project.checklist_data?.filter(i => i.status === 'worry').length || 0;
+              return (
+                <button
+                  key={project.id}
+                  onClick={() => setSelectedProject(project)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                    isSelected
+                      ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 active:scale-95'
+                  }`}
+                >
+                  {project.business_category}
+                  {project.user_name ? ` · ${project.user_name}` : ''}
+                  {worryCount > 0 && (
+                    <span className={`ml-1 ${isSelected ? 'text-orange-200' : 'text-orange-500'}`}>
+                      ⚠{worryCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* 데스크톱 사이드바 - 프로필 & 프로젝트 목록 */}
+      <aside className="hidden md:flex w-80 bg-white border-r flex-col">
         {/* PM 프로필 */}
         <div className="p-4 border-b">
           <div className="flex items-center gap-3 mb-4">
@@ -880,10 +938,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                 return (
                   <button
                     key={project.id}
-                    onClick={() => {
-                      setSelectedProject(project);
-                      setShowMobileSidebar(false); // 모바일에서 프로젝트 선택 시 메인으로 전환
-                    }}
+                    onClick={() => setSelectedProject(project)}
                     className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
                       selectedProject?.id === project.id ? 'bg-brand-50 border-l-4 border-brand-600' : ''
                     }`}
@@ -928,26 +983,31 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
       </aside>
 
       {/* 메인 - 프로젝트 상세 */}
-      <main className={`flex-1 flex flex-col min-h-0 ${showMobileSidebar ? 'hidden md:flex' : 'flex'}`}>
+      <main className="flex-1 flex flex-col min-h-0">
         {selectedProject ? (
           <>
             {/* 프로젝트 헤더 */}
-            <div className="bg-white border-b px-4 md:px-6 py-4">
+            <div className="bg-white border-b px-4 md:px-6 py-3 md:py-4 shrink-0">
               <div className="flex items-center justify-between gap-2">
-                {/* 모바일 뒤로가기 버튼 */}
-                <button
-                  onClick={() => setShowMobileSidebar(true)}
-                  className="md:hidden p-2 -ml-2 text-gray-600 hover:text-gray-900"
-                >
-                  <ChevronRight size={20} className="rotate-180" />
-                </button>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg md:text-xl font-bold truncate">
-                    {selectedProject.business_category} 창업 프로젝트
-                  </h1>
-                  <p className="text-sm text-gray-500">
-                    강남구 {selectedProject.location_dong} · {selectedProject.store_size}평 ·
-                    예상 {(selectedProject.estimated_total / 10000).toFixed(0)}만원
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h1 className="text-base md:text-xl font-bold truncate">
+                      {selectedProject.business_category} 창업
+                    </h1>
+                    {selectedProject.user_name && (
+                      <span className="shrink-0 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full font-bold flex items-center gap-1">
+                        <UserIcon size={10} />
+                        {selectedProject.user_name}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs md:text-sm text-gray-500">
+                    강남구 {selectedProject.location_dong} · {selectedProject.store_size}평 · 예상 {(selectedProject.estimated_total / 10000).toFixed(0)}만원
+                    {selectedProject.user_phone && (
+                      <a href={`tel:${selectedProject.user_phone}`} className="ml-2 text-brand-600 font-bold">
+                        📞 {selectedProject.user_phone}
+                      </a>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
@@ -1012,63 +1072,64 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                 </div>
               )}
 
-              {/* 고객 상담 조건 요약 */}
-              <div className="mt-4 p-4 bg-slate-50 rounded-xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <User size={16} className="text-brand-600" />
-                  <span className="font-bold text-sm">고객 상담 조건</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-400 text-xs mb-1">고객명</p>
-                    <p className="font-bold">{selectedProject.user_name || '미입력'}</p>
+              {/* 고객 상담 조건 - 데스크톱: 상세, 모바일: 체크리스트 뱃지만 */}
+              <div className="mt-2 md:mt-4 p-3 md:p-4 bg-slate-50 rounded-xl">
+                {/* 데스크톱: 상세 그리드 */}
+                <div className="hidden md:block">
+                  <div className="flex items-center gap-2 mb-3">
+                    <UserIcon size={16} className="text-brand-600" />
+                    <span className="font-bold text-sm">고객 상담 조건</span>
                   </div>
-                  <div>
-                    <p className="text-gray-400 text-xs mb-1">연락처</p>
-                    <p className="font-bold">{selectedProject.user_phone || '미입력'}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs mb-1">업종</p>
-                    <p className="font-bold">{selectedProject.business_category}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-xs mb-1">위치/평수</p>
-                    <p className="font-bold">강남구 {selectedProject.location_dong} · {selectedProject.store_size}평</p>
-                  </div>
-                </div>
-
-                {/* 체크리스트 현황 */}
-                <div className="mt-4 pt-3 border-t border-slate-200">
-                  <p className="text-xs text-gray-400 mb-2">체크리스트 현황</p>
-                  <div className="flex gap-3 flex-wrap">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
-                      ✓ 준비됨 {selectedProject.checklist_data?.filter(i => i.status === 'done').length || 0}건
-                    </span>
-                    <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-bold">
-                      ⚠ 도움 필요 {selectedProject.checklist_data?.filter(i => i.status === 'worry').length || 0}건
-                    </span>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">
-                      미확인 {selectedProject.checklist_data?.filter(i => i.status === 'unchecked').length || 0}건
-                    </span>
-                  </div>
-                </div>
-
-                {/* 도움 필요 항목 */}
-                {selectedProject.checklist_data?.filter(i => i.status === 'worry').length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-200">
-                    <p className="text-xs text-orange-600 font-bold mb-2">⚠ 고객이 도움 요청한 항목</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProject.checklist_data
-                        .filter(i => i.status === 'worry')
-                        .map(item => (
-                          <span key={item.id} className="px-2 py-1 bg-orange-50 text-orange-700 rounded text-xs">
-                            {item.title}
-                          </span>
-                        ))
-                      }
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-gray-400 text-xs mb-1">고객명</p>
+                      <p className="font-bold">{selectedProject.user_name || '미입력'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs mb-1">연락처</p>
+                      <p className="font-bold">{selectedProject.user_phone || '미입력'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs mb-1">업종</p>
+                      <p className="font-bold">{selectedProject.business_category}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-xs mb-1">위치/평수</p>
+                      <p className="font-bold">강남구 {selectedProject.location_dong} · {selectedProject.store_size}평</p>
                     </div>
                   </div>
-                )}
+                  <div className="mt-3 pt-3 border-t border-slate-200">
+                    <div className="flex gap-3 flex-wrap">
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
+                        ✓ 준비됨 {selectedProject.checklist_data?.filter(i => i.status === 'done').length || 0}건
+                      </span>
+                      <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-bold">
+                        ⚠ 도움 필요 {selectedProject.checklist_data?.filter(i => i.status === 'worry').length || 0}건
+                      </span>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">
+                        미확인 {selectedProject.checklist_data?.filter(i => i.status === 'unchecked').length || 0}건
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 모바일: 컴팩트 뱃지 */}
+                <div className="md:hidden flex gap-2 flex-wrap">
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
+                    ✓ {selectedProject.checklist_data?.filter(i => i.status === 'done').length || 0}
+                  </span>
+                  <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-bold">
+                    ⚠ {selectedProject.checklist_data?.filter(i => i.status === 'worry').length || 0}
+                  </span>
+                  <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">
+                    미확인 {selectedProject.checklist_data?.filter(i => i.status === 'unchecked').length || 0}
+                  </span>
+                  {selectedProject.checklist_data?.filter(i => i.status === 'worry').map(item => (
+                    <span key={item.id} className="px-2 py-1 bg-orange-50 text-orange-700 rounded text-xs">
+                      {item.title}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {/* 탭 */}
@@ -1107,7 +1168,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
 
             {/* 체크리스트 탭 */}
             {activeTab === 'checklist' && (
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
                 {/* 카테고리 필터 */}
                 <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
                   <button
@@ -1265,7 +1326,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
             {/* 채팅 탭 */}
             {activeTab === 'chat' && (
               <>
-                <div className="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-3 max-h-[calc(100vh-280px)]">
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 space-y-3">
                   {messages.length === 0 ? (
                     <div className="text-center py-12 text-gray-400">
                       <MessageCircle size={48} className="mx-auto mb-4 opacity-50" />
