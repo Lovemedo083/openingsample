@@ -3,9 +3,13 @@ import { ConsultingBooking, Quote, FurnitureListing } from '../types';
 
 // 1. 상담 내역 불러오기 (files 컬럼 포함)
 export const fetchConsultings = async (): Promise<ConsultingBooking[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
   const { data, error } = await supabase
     .from('consultings')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -34,14 +38,13 @@ export const fetchConsultings = async (): Promise<ConsultingBooking[]> => {
 // 2. 상담 신청하기 (저장) - [수정] 로그인 체크 완화
 export const createConsulting = async (booking: ConsultingBooking) => {
   const { data: { user } } = await supabase.auth.getUser();
-  // 사용자가 없으면 'admin-test-id' 사용
-  const userId = user ? user.id : 'admin-test-id';
+  if (!user) throw new Error('로그인이 필요합니다.');
 
   const { data, error } = await supabase
     .from('consultings')
     .insert([
       {
-        user_id: userId,
+        user_id: user.id,
         business_type: booking.businessType,
         region: booking.region,
         area: booking.area,
@@ -158,15 +161,14 @@ export const fetchQuotes = async (): Promise<Quote[]> => {
 // 5. 견적서 저장하기 (layout_data 저장 추가) - [수정] 로그인 체크 완화
 export const createQuote = async (quote: Quote) => {
   const { data: { user } } = await supabase.auth.getUser();
-  // 사용자가 없으면 'admin-test-id' 사용
-  const userId = user ? user.id : 'admin-test-id';
+  if (!user) throw new Error('로그인이 필요합니다.');
 
   const { data, error } = await supabase
     .from('quotes')
     .insert([
       {
-        id: quote.id, // 앱에서 생성한 QT-XXXX ID 사용
-        user_id: userId,
+        id: quote.id,
+        user_id: user.id,
         package_id: quote.packageId,
         package_name: quote.packageName,
         

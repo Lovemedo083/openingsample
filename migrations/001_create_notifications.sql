@@ -28,10 +28,10 @@ CREATE POLICY "Users can update own notifications"
   ON notifications FOR UPDATE
   USING (auth.uid() = user_id);
 
--- 서비스 역할(어드민/PM/시스템)은 알림 생성 가능
-CREATE POLICY "Anyone can insert notifications"
+-- 인증된 사용자만 알림 생성 가능 (Edge Function은 service_role로 우회)
+CREATE POLICY "Authenticated insert notifications"
   ON notifications FOR INSERT
-  WITH CHECK (TRUE);
+  WITH CHECK (auth.role() = 'authenticated');
 
 -- Realtime 활성화
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;

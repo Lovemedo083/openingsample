@@ -312,6 +312,9 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const touchStartRef = useRef<number>(0);
+  const msgChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const projChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastSeenStepRef = useRef<number | null>(null);
 
   // UI 상태
   const [showOnboarding, setShowOnboarding] = useState(() => !sessionStorage.getItem('onboarding_seen'));
@@ -319,11 +322,28 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showCostBreakdown, setShowCostBreakdown] = useState(false);
 
+  // Keep lastSeenStepRef in sync to avoid stale closures in realtime callback
+  useEffect(() => {
+    lastSeenStepRef.current = lastSeenStep;
+  }, [lastSeenStep]);
+
   // 기존 프로젝트 로드 (게스트 모드가 아닐 때만)
   useEffect(() => {
     if (!isGuestMode) {
       loadExistingProject();
     }
+
+    // Cleanup realtime subscriptions on unmount
+    return () => {
+      if (msgChannelRef.current) {
+        supabase.removeChannel(msgChannelRef.current);
+        msgChannelRef.current = null;
+      }
+      if (projChannelRef.current) {
+        supabase.removeChannel(projChannelRef.current);
+        projChannelRef.current = null;
+      }
+    };
   }, [isGuestMode]);
 
   // 메시지 스크롤
@@ -385,7 +405,10 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
 
   // 프로젝트 변경사항 실시간 구독
   const subscribeToProjectUpdates = (projectId: string) => {
-    supabase
+    if (projChannelRef.current) {
+      supabase.removeChannel(projChannelRef.current);
+    }
+    const channel = supabase
       .channel(`project-updates-${projectId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -394,7 +417,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         filter: `id=eq.${projectId}`
       }, (payload: any) => {
         const newStep = payload.new.current_step;
-        const prevStep = lastSeenStep || project?.current_step;
+        const prevStep = lastSeenStepRef.current;
 
         if (newStep !== prevStep && newStep >= 7) {
           setCurrentStep(newStep);
@@ -405,6 +428,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         }
       })
       .subscribe();
+    projChannelRef.current = channel;
   };
 
   const loadMessages = async (projectId: string) => {
@@ -420,7 +444,10 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   };
 
   const subscribeToMessages = (projectId: string) => {
-    supabase
+    if (msgChannelRef.current) {
+      supabase.removeChannel(msgChannelRef.current);
+    }
+    const channel = supabase
       .channel(`project-${projectId}`)
       .on('postgres_changes', {
         event: 'INSERT',
@@ -431,6 +458,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         setMessages(prev => [...prev, payload.new as Message]);
       })
       .subscribe();
+    msgChannelRef.current = channel;
   };
 
   const sendMessage = async () => {

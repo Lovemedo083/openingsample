@@ -232,12 +232,18 @@ export const createNotification = async (params: {
       message: params.message,
     });
 
-    // 2. 브라우저 푸시 발송 (Edge Function 호출)
+    // 2. 브라우저 푸시 발송 (Edge Function 호출 - JWT 인증 필요)
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     if (supabaseUrl) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       fetch(`${supabaseUrl}/functions/v1/send-push`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || anonKey}`,
+          'apikey': anonKey,
+        },
         body: JSON.stringify({
           user_id: params.userId,
           title: params.title,

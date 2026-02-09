@@ -103,10 +103,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   const [tossPayLoading, setTossPayLoading] = useState<string | null>(null); // payment_id being processed
   const [tossRedirectParams, setTossRedirectParams] = useState<{paymentKey: string; orderId: string; amount: string; paymentId: string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const msgChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const projChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const currentStepRef = useRef<number | undefined>(undefined);
+
+  // Keep currentStepRef in sync to avoid stale closures in realtime callback
+  useEffect(() => {
+    currentStepRef.current = project?.current_step;
+  }, [project?.current_step]);
 
   useEffect(() => {
     loadProject();
     loadUser();
+
+    // Cleanup realtime subscriptions on unmount
+    return () => {
+      if (msgChannelRef.current) {
+        supabase.removeChannel(msgChannelRef.current);
+        msgChannelRef.current = null;
+      }
+      if (projChannelRef.current) {
+        supabase.removeChannel(projChannelRef.current);
+        projChannelRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -239,39 +259,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
     }
   }, [tossRedirectParams]);
 
-  // 토스페이 결제 완료 처리
+  // 토스페이 결제 완료 처리 (서버사이드 Edge Function으로 확인)
   const completeTossPayment = async (paymentKey: string, orderId: string, amount: number, paymentId: string) => {
     if (!paymentId || !project?.id) return;
 
     try {
-      // TODO: 운영 시 Supabase Edge Function에서 서버사이드 결제 승인 처리 필요
-      // POST /v1/payments/confirm { paymentKey, orderId, amount }
-      // 현재는 클라이언트에서 직접 상태 업데이트 (테스트용)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: { session } } = await supabase.auth.getSession();
 
-      await supabase
-        .from('payments')
-        .update({ status: 'completed', payment_key: paymentKey, approved_at: new Date().toISOString() })
-        .eq('id', paymentId);
-
-      // 시스템 메시지
-      await supabase.from('project_messages').insert({
-        project_id: project.id,
-        sender_type: 'SYSTEM',
-        message: `✅ ${amount.toLocaleString('ko-KR')}원 결제가 완료되었습니다.\n\n토스페이를 통해 정상 처리되었습니다.\n\n시공 준비가 곧 시작됩니다.`
+      const res = await fetch(`${supabaseUrl}/functions/v1/confirm-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ paymentKey, orderId, amount, paymentId }),
       });
 
-      // Step 9 → 10 자동 전환
-      const { data: proj } = await supabase
-        .from('startup_projects')
-        .select('current_step')
-        .eq('id', project.id)
-        .single();
+      const result = await res.json();
 
-      if (proj && proj.current_step === 9) {
-        await supabase
-          .from('startup_projects')
-          .update({ current_step: 10, pm_approved_step: 10, status: 'IN_PROGRESS' })
-          .eq('id', project.id);
+      if (!res.ok) {
+        throw new Error(result.error || '결제 확인 실패');
       }
 
       // 결제 완료 알림
@@ -288,9 +296,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
       setStepToast('결제가 완료되었습니다!');
       setTimeout(() => setStepToast(null), 4000);
       loadProject();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Payment completion error:', err);
-      setStepToast('결제 처리 중 오류가 발생했습니다');
+      setStepToast(err.message || '결제 처리 중 오류가 발생했습니다');
       setTimeout(() => setStepToast(null), 4000);
     }
   };
@@ -356,7 +364,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   };
 
   const subscribeToMessages = (projectId: string) => {
-    supabase
+    if (msgChannelRef.current) {
+      supabase.removeChannel(msgChannelRef.current);
+    }
+    const channel = supabase
       .channel(`dash-msgs-${projectId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'project_messages',
@@ -365,10 +376,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
         setMessages(prev => [...prev, payload.new as Message]);
       })
       .subscribe();
+    msgChannelRef.current = channel;
   };
 
   const subscribeToProject = (projectId: string) => {
-    supabase
+    if (projChannelRef.current) {
+      supabase.removeChannel(projChannelRef.current);
+    }
+    const channel = supabase
       .channel(`dash-project-${projectId}`)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'startup_projects',
@@ -377,7 +392,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
         const newStatus = payload.new?.status;
         const prevStatus = payload.old?.status;
         const newStep = payload.new?.current_step;
-        const prevStep = project?.current_step;
+        const prevStep = currentStepRef.current;
 
         // PENDING_PM → PM_ASSIGNED 전환 시 특별 알림
         if (prevStatus === 'PENDING_PM' && newStatus === 'PM_ASSIGNED') {
@@ -390,6 +405,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
         loadProject();
       })
       .subscribe();
+    projChannelRef.current = channel;
   };
 
   const sendMessage = async () => {

@@ -13,9 +13,8 @@ import {
   Briefcase, Send, ArrowLeft
 } from 'lucide-react';
 
-// Toss 결제 키 (환경변수)
+// Toss 결제 키 (환경변수) - Client Key만 클라이언트에서 사용 (공개키)
 const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY || '';
-const TOSS_SECRET_KEY = import.meta.env.VITE_TOSS_SECRET_KEY || '';
 
 interface Partner {
   id: string;
@@ -212,20 +211,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
   const loadAllProjects = async () => {
     const { data: projects } = await supabase
       .from('startup_projects')
-      .select('*, profiles:user_id(name, phone, email, full_name)')
+      .select('*, profiles:user_id(name, phone, email, full_name), project_managers:pm_id(name)')
       .order('created_at', { ascending: false });
 
     if (projects) {
-      // PM 이름 + 신청자 이름 매핑
-      const projectsWithPM = projects.map((p: any) => {
-        const pm = pms.find(pm => pm.id === p.pm_id);
-        return {
-          ...p,
-          pm_name: pm?.name || '미배정',
-          user_name: p.profiles?.full_name || p.profiles?.name || p.profiles?.email?.split('@')[0] || null,
-          user_phone: p.profiles?.phone || null,
-        };
-      });
+      const projectsWithPM = projects.map((p: any) => ({
+        ...p,
+        pm_name: p.project_managers?.name || '미배정',
+        user_name: p.profiles?.full_name || p.profiles?.name || p.profiles?.email?.split('@')[0] || null,
+        user_phone: p.profiles?.phone || null,
+      }));
       setAllProjects(projectsWithPM);
     }
   };
@@ -750,7 +745,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onLogout }) => {
                     <h3 className="font-bold text-blue-800 mb-2">Toss 결제 연동 (테스트 모드)</h3>
                     <div className="text-sm text-blue-700 space-y-1">
                       <p>Client Key: {TOSS_CLIENT_KEY.slice(0, 20)}...</p>
-                      <p>Secret Key: {TOSS_SECRET_KEY.slice(0, 20)}...</p>
                     </div>
                   </div>
 

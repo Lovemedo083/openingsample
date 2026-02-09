@@ -364,7 +364,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
 
     // 서버 동기화
     const { error } = await supabase
-      .from('consultings')
+      .from('startup_projects')
       .update({ checklist_data: updatedChecklist })
       .eq('id', selectedProject.id);
 
@@ -384,7 +384,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
     const updatedChecklist = selectedProject.checklist_data?.filter(item => item.id !== itemId) || [];
 
     const { error } = await supabase
-      .from('consultings')
+      .from('startup_projects')
       .update({ checklist_data: updatedChecklist })
       .eq('id', selectedProject.id);
 

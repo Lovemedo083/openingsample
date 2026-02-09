@@ -278,7 +278,7 @@ export interface CategoryNode {
 export type MainTab = 'HOME' | 'CONSULTING' | 'MORE' | 'MYPAGE' | 'PROJECT';
 
 // 창업 프로젝트 상태
-export type ProjectStatus = 'DRAFT' | 'PM_ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type ProjectStatus = 'DRAFT' | 'PENDING_PM' | 'PM_ASSIGNED' | 'IN_PROGRESS' | 'PAYMENT_PENDING' | 'ACTIVE' | 'POST_SERVICE' | 'COMPLETED' | 'CANCELLED';
 
 // 창업 프로젝트
 export interface StartupProject {

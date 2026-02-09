@@ -23,7 +23,5 @@ CREATE POLICY "Users can manage own push subscriptions"
   ON push_subscriptions FOR ALL
   USING (auth.uid() = user_id);
 
--- 서비스에서 구독 조회 (Edge Function용)
-CREATE POLICY "Service can read all subscriptions"
-  ON push_subscriptions FOR SELECT
-  USING (TRUE);
+-- Edge Function은 service_role key로 RLS 우회하여 조회 가능
+-- 클라이언트에서는 자기 구독만 조회됨 (위 정책으로 제한)

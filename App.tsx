@@ -240,31 +240,35 @@ function App() {
     // 만료된 Supabase Auth 세션 클리어 (401 방지)
     await supabase.auth.signOut();
 
-    if (email === 'admin' && password === 'epdlfflalf1!') {
-      setIsAdmin(true);
-      setIsAuthenticated(true);
-      setUser({ id: 'admin', name: '관리자', phone: '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      if (!data.success) return false;
+
+      if (data.role === 'admin') {
+        setIsAdmin(true);
+        setIsAuthenticated(true);
+        setUser({ id: 'admin', name: data.user.name, phone: '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
+      } else if (data.role === 'pm') {
+        setIsPM(true);
+        setPmId(data.user.id);
+        setIsAuthenticated(true);
+        setUser({ id: data.user.id, name: data.user.name + ' PM', phone: data.user.phone || '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
+      }
+
       setShowLanding(false);
       setShowLogin(false);
       return true;
+    } catch (err) {
+      console.error('Admin login error:', err);
+      return false;
     }
-    if (password === 'pm1234!') {
-      const { data: pmData } = await supabase
-        .from('project_managers')
-        .select('id, name, phone')
-        .eq('email', email)
-        .single();
-      if (pmData) {
-        setIsPM(true);
-        setPmId(pmData.id);
-        setIsAuthenticated(true);
-        setUser({ id: pmData.id, name: pmData.name + ' PM', phone: pmData.phone || '', type: 'KAKAO', joinedDate: new Date().toLocaleDateString() });
-        setShowLanding(false);
-        setShowLogin(false);
-        return true;
-      }
-    }
-    return false;
   };
 
   // === 렌더링 ===
