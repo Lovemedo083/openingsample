@@ -39,22 +39,25 @@ function App() {
   // 프로젝트 생성 실패 시 에러 상태
   const [projectError, setProjectError] = useState<string | null>(null);
 
-  // Auth 체크 — onAuthStateChange만 사용 (getSession은 lock hang 유발)
+  // Auth 체크 — onAuthStateChange 콜백은 Supabase 내부 lock 안에서 실행되므로,
+  // setTimeout(0)으로 lock 해제 후 실제 작업 수행 (deadlock 방지)
   useEffect(() => {
     let handled = false;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[Auth] event:', event, session?.user ? 'user=' + session.user.id.slice(0, 8) : 'no user');
 
-      if (session?.user && !handled) {
-        handled = true;
-        console.log('[Auth] handleSession start');
-        await handleSession(session);
-        setShowLanding(false);
-        console.log('[Auth] handleSession done');
-      }
-
-      setIsAuthChecking(false);
+      // setTimeout(0)으로 Supabase 내부 lock 해제 후 실행
+      setTimeout(async () => {
+        if (session?.user && !handled) {
+          handled = true;
+          console.log('[Auth] handleSession start');
+          await handleSession(session);
+          setShowLanding(false);
+          console.log('[Auth] handleSession done');
+        }
+        setIsAuthChecking(false);
+      }, 0);
     });
 
     // 안전장치: 5초 안에 아무 이벤트도 안 오면 로딩 해제
