@@ -529,7 +529,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   // === 채팅 풀스크린 ===
   if (showChat && !isPending) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col pb-20">
+      <div className="min-h-screen bg-slate-50 flex flex-col" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
         {/* 채팅 헤더 */}
         <div className={`bg-gradient-to-r ${currentTheme.gradient} text-white px-4 py-3 shrink-0`}>
           <div className="flex items-center gap-3">
@@ -641,7 +641,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
         </div>
 
         {/* 메시지 입력 */}
-        <div className="fixed bottom-[72px] left-0 right-0 bg-white border-t z-40">
+        <div className="fixed left-0 right-0 bg-white border-t z-40" style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}>
           <div className="max-w-lg mx-auto">
             {/* 이미지 프리뷰 */}
             {imagePreview && (
@@ -690,7 +690,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
   // === PENDING_PM 대기 화면 ===
   if (isPending) {
     return (
-      <div className="min-h-screen bg-slate-50 pb-24">
+      <div className="min-h-screen bg-slate-50" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
         {/* 헤더 */}
         <header className="sticky top-0 z-40 bg-white border-b border-slate-100">
           <div className="px-4 h-14 flex items-center justify-between">
@@ -810,7 +810,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigateToProjec
 
   // === PM 배정된 후 대시보드 ===
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-slate-50" style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
       {/* 단계 변경 토스트 */}
       {stepToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-bold animate-fade-in max-w-[90%]">

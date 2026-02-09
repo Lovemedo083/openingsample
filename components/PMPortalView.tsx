@@ -950,15 +950,15 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                     예상 {(selectedProject.estimated_total / 10000).toFixed(0)}만원
                   </p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
                   {getWorryCount() > 0 && (
-                    <span className="px-3 py-1 rounded-full text-sm font-bold bg-orange-100 text-orange-700">
+                    <span className="hidden md:inline px-3 py-1 rounded-full text-sm font-bold bg-orange-100 text-orange-700">
                       도움 필요 {getWorryCount()}건
                     </span>
                   )}
                   <button
                     onClick={() => setShowStepModal(true)}
-                    className={`px-3 py-1 rounded-full text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity ${
+                    className={`px-2.5 md:px-3 py-1 rounded-full text-xs md:text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity ${
                       selectedProject.current_step >= 11
                         ? 'bg-green-100 text-green-700'
                         : selectedProject.current_step >= 7
@@ -969,19 +969,22 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                     {STEP_LABELS[selectedProject.current_step]} ▼
                   </button>
                   {selectedProject.current_step >= 7 && selectedProject.current_step < 12 && (
-                    <Button onClick={advanceProjectStep} className="text-sm">
-                      <ArrowRight size={16} className="mr-1" />
-                      다음 단계
+                    <Button onClick={advanceProjectStep} className="text-xs md:text-sm !px-2.5 md:!px-3">
+                      <ArrowRight size={14} className="mr-0.5 md:mr-1" />
+                      <span className="hidden md:inline">다음 단계</span>
+                      <span className="md:hidden">다음</span>
                     </Button>
                   )}
                   {selectedProject.current_step === 8 && (
-                    <Button onClick={() => setShowReportModal(true)} className="text-sm bg-purple-600 hover:bg-purple-700">
-                      📊 비용 보고서
+                    <Button onClick={() => setShowReportModal(true)} className="text-xs md:text-sm bg-purple-600 hover:bg-purple-700 !px-2.5 md:!px-3">
+                      <span className="hidden md:inline">📊 비용 보고서</span>
+                      <span className="md:hidden">📊</span>
                     </Button>
                   )}
                   {selectedProject.current_step >= 11 && (
-                    <Button onClick={sendHappyCallMessage} className="text-sm bg-pink-600 hover:bg-pink-700">
-                      📞 해피콜
+                    <Button onClick={sendHappyCallMessage} className="text-xs md:text-sm bg-pink-600 hover:bg-pink-700 !px-2.5 md:!px-3">
+                      <span className="hidden md:inline">📞 해피콜</span>
+                      <span className="md:hidden">📞</span>
                     </Button>
                   )}
                 </div>
@@ -1106,10 +1109,10 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
             {activeTab === 'checklist' && (
               <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
                 {/* 카테고리 필터 */}
-                <div className="flex gap-2 mb-4">
+                <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
                   <button
                     onClick={() => setSelectedChecklistCategory(null)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                       !selectedChecklistCategory
                         ? 'bg-slate-900 text-white'
                         : 'bg-white text-gray-600 hover:bg-gray-50'
@@ -1119,7 +1122,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                   </button>
                   <button
                     onClick={() => setSelectedChecklistCategory('worry')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors shrink-0 ${
                       selectedChecklistCategory === 'worry'
                         ? 'bg-orange-600 text-white'
                         : 'bg-white text-orange-600 border border-orange-200 hover:bg-orange-50'
@@ -1132,7 +1135,7 @@ export const PMPortalView: React.FC<PMPortalViewProps> = ({ pmId, onLogout }) =>
                     <button
                       key={cat.id}
                       onClick={() => setSelectedChecklistCategory(cat.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0 ${
                         selectedChecklistCategory === cat.id
                           ? 'bg-slate-900 text-white'
                           : 'bg-white text-gray-600 hover:bg-gray-50'

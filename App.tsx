@@ -357,7 +357,7 @@ function App() {
   // 5. 일반 사용자: 프로젝트 없으면 ServiceJourney, 있으면 Dashboard
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col max-w-lg mx-auto relative">
-      <main className="flex-1 w-full overflow-y-auto no-scrollbar scroll-smooth pb-20">
+      <main className="flex-1 w-full overflow-y-auto no-scrollbar scroll-smooth" style={{ paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
         {currentTab === 'HOME' && (
           hasActiveProject ? (
             <DashboardView
