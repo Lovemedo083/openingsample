@@ -311,7 +311,7 @@ function App() {
             <DoorOpen size={36} strokeWidth={2.5} />
           </div>
           <Loader2 className="animate-spin text-brand-400" size={28} />
-          {isDataLoading && <p className="text-sm text-slate-400 mt-2">프로젝트 준비중...</p>}
+          <p className="text-sm text-slate-400 mt-2">{isDataLoading ? '프로젝트 준비중...' : '인증 확인중...'}</p>
         </div>
       </div>
     );
