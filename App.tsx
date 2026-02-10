@@ -329,9 +329,13 @@ function App() {
   if (showLogin) {
     return (
       <LoginView
-        onLoginSuccess={() => {
+        onLoginSuccess={async () => {
           setShowLogin(false);
           setShowLanding(false);
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            await handleSession(session);
+          }
         }}
         onGuestBrowse={() => {
           // 게스트 둘러보기 → ServiceJourney 위자드로 진입 (대시보드 아님)
