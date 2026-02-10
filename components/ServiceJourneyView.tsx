@@ -1623,8 +1623,10 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-lg font-bold focus:border-brand-500 focus:ring-0"
                 value={storeSize}
                 onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setStoreSize(v > 0 && v <= 500 ? v : 15);
+                  const raw = e.target.value;
+                  if (raw === '') { setStoreSize(''); return; }
+                  const v = Number(raw);
+                  if (v > 0 && v <= 500) setStoreSize(v);
                 }}
               />
             </div>
