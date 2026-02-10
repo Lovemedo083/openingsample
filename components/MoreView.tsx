@@ -219,7 +219,7 @@ export const MoreView: React.FC<MoreViewProps> = ({
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
                   <MenuItem icon={MapPin} label="강남구 상권 정보" sub="동별 창업 비용/특성" onClick={() => setViewState('DISTRICTS')} />
                   <MenuItem icon={Banknote} label="정부 지원사업" sub="희망리턴패키지 등" onClick={() => setViewState('GOV_PROGRAMS')} />
-                  <MenuItem icon={Armchair} label="가구 마켓" sub="중고 장비 거래" onClick={() => setViewState('FURNITURE')} />
+                  <MenuItem icon={Armchair} label="가구 마켓" sub="준비중" onClick={() => alert('준비중입니다.')} />
               </div>
           </section>
       </div>

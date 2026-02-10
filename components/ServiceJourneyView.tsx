@@ -288,7 +288,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
   const [businessCategory, setBusinessCategory] = useState('');
   const [hasRealEstateContract, setHasRealEstateContract] = useState<boolean | null>(null);
   const [dong, setDong] = useState('');
-  const [storeSize, setStoreSize] = useState(15);
+  const [storeSize, setStoreSize] = useState<number | ''>('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [pmMessage, setPmMessage] = useState('');
 
