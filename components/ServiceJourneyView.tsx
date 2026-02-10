@@ -1828,7 +1828,8 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         )}
       </div>
 
-      {/* 하단 버튼 - BottomNav 위에 위치 */}
+      {/* 하단 버튼 - BottomNav 위에 위치 (viewMode='view'에서는 숨김) */}
+      {viewMode !== 'view' && (
       <div
         className="fixed bottom-[72px] left-0 right-0 bg-white border-t z-40 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]"
       >
@@ -1861,6 +1862,7 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };
