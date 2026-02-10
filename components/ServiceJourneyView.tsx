@@ -21,6 +21,7 @@ interface ServiceJourneyViewProps {
   isGuestMode?: boolean;
   onProjectCreated?: () => void;
   onLoginRequired?: () => void;
+  viewMode?: 'create' | 'view';
 }
 
 interface ProjectManager {
@@ -274,7 +275,7 @@ const PM_STEP_LABELS: Record<number, string> = {
   12: '사후관리'
 };
 
-export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, isGuestMode = false, onProjectCreated, onLoginRequired }) => {
+export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, isGuestMode = false, onProjectCreated, onLoginRequired, viewMode = 'create' }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(!isGuestMode); // 게스트 모드는 로딩 없음
   const [project, setProject] = useState<Project | null>(null);
@@ -1042,7 +1043,13 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
         <div className={`bg-gradient-to-r ${stepColor.bg} text-white px-4 py-3`}>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowCancelDialog(true)}
+              onClick={() => {
+                if (viewMode === 'view') {
+                  if (onBack) onBack();
+                } else {
+                  setShowCancelDialog(true);
+                }
+              }}
               className="p-2 -ml-2 hover:bg-white/10 rounded-full"
             >
               <X size={20} className="text-white/80" />
@@ -1330,7 +1337,13 @@ export const ServiceJourneyView: React.FC<ServiceJourneyViewProps> = ({ onBack, 
               <ChevronLeft size={24} />
             </button>
           ) : (
-            <button onClick={() => setShowCancelDialog(true)} className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
+            <button onClick={() => {
+              if (viewMode === 'view') {
+                if (onBack) onBack();
+              } else {
+                setShowCancelDialog(true);
+              }
+            }} className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
               <X size={24} />
             </button>
           )}

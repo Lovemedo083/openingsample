@@ -398,10 +398,11 @@ function App() {
 
         {currentTab === 'PROJECT' && (
           <ServiceJourneyView
-            onBack={() => { setCurrentTab('HOME'); setShowLanding(true); }}
+            onBack={() => setCurrentTab('HOME')}
             isGuestMode={!isAuthenticated}
             onProjectCreated={() => setHasActiveProject(true)}
             onLoginRequired={handleLoginRequired}
+            viewMode="view"
           />
         )}
 
